@@ -1,18 +1,25 @@
 #include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 int add(int a, int b)
 {
     return (a + b);
 };
 
-/*
-void get_K_element_matrix(double K_e[6][6], double node[2][2], double length, double A)
+void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
 {
-    K_e[]
+    double vector[2];
+    double length;
+
+    vector[0] = node[1][0] - node[0][0];
+    vector[1] = node[1][1] - node[0][1];
+
+    length = sqrt(pow(vector[0], 2) + pow(vector[1], 2));
+    printf("%f,%f,%f\n", vector[0], vector[1], length);
 }
-*/
+
 void print_matrix(double K[6][6])
 {
     int i, j;
@@ -52,7 +59,7 @@ int main(void)
     double K_e[6][6];
     double M_e[6][6];
     double c[6][6];
-    double node[2][2];
+    // double node[2][2];
     double length;
     double A;
 
@@ -65,20 +72,10 @@ int main(void)
             K_e[i][j] = i;
         }
     }
+    A = 2;
 
-    for (i = 0; i < 6; i++)
-    {
-        for (j = 0; j < 6; j++)
-        {
-            M_e[i][j] = j;
-        }
-    }
-
-    print_matrix(K_e);
-    print_matrix(M_e);
-
-    matrix_mul(c, K_e, M_e);
-    print_matrix(c);
+    double node[2][2] = {1.0, 2.0, 3.0, 4.0};
+    get_K_element_matrix(K_e, node, A);
 
     return 0;
 }
