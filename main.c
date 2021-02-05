@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 void print_matrix(double K[6][6])
 {
@@ -144,7 +145,12 @@ int main(void)
     A = 2;
 
     double node[2][2] = {1.0, 3.5, 3.0, 4.0};
+    clock_t start, end;
+    start = clock();
+
     get_K_element_matrix(K_e, node, A);
 
+    end = clock();
+    printf("%.2f秒かかりました\n", (double)(end - start) / CLOCKS_PER_SEC);
     return 0;
 }
