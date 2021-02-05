@@ -3,23 +3,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-int add(int a, int b)
-{
-    return (a + b);
-};
-
-void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
-{
-    double vector[2];
-    double length;
-
-    vector[0] = node[1][0] - node[0][0];
-    vector[1] = node[1][1] - node[0][1];
-
-    length = sqrt(pow(vector[0], 2) + pow(vector[1], 2));
-    printf("%f,%f,%f\n", vector[0], vector[1], length);
-}
-
 void print_matrix(double K[6][6])
 {
     int i, j;
@@ -36,6 +19,44 @@ void print_matrix(double K[6][6])
                 printf("\n");
         }
     }
+}
+
+void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
+{
+    double vector[2];
+    double length, sin, cos;
+    double T[6][6];
+
+    int i, j;
+
+    vector[0] = node[1][0] - node[0][0];
+    vector[1] = node[1][1] - node[0][1];
+
+    length = sqrt(pow(vector[0], 2) + pow(vector[1], 2));
+    printf("%f,%f,%f\n", vector[0], vector[1], length);
+    sin = vector[0] / length;
+    cos = vector[1] / length;
+
+    // Tを一旦零行列にする
+    for (i = 0; i < 6; i++)
+    {
+        for (j = 0; j < 6; j++)
+        {
+            T[i][j] = 0;
+        }
+    }
+    T[0][0] = cos;
+    T[0][1] = sin;
+    T[1][0] = -sin;
+    T[1][1] = cos;
+    T[2][2] = 1;
+    T[3][3] = cos;
+    T[3][4] = sin;
+    T[4][3] = -sin;
+    T[4][4] = cos;
+    T[6][6] = 1;
+
+    print_matrix(T);
 }
 
 void matrix_mul(double c[][6], double a[][6], double b[][6])
@@ -74,7 +95,7 @@ int main(void)
     }
     A = 2;
 
-    double node[2][2] = {1.0, 2.0, 3.0, 4.0};
+    double node[2][2] = {1.0, 3.0, 3.0, 4.0};
     get_K_element_matrix(K_e, node, A);
 
     return 0;
