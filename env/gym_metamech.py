@@ -159,6 +159,14 @@ class MetamechGym(gym.Env):
         return nx.is_connected(G)
 
     def extract_node_edge_info(self):
+        """グラフを構成するのに必要な情報を抽出
+
+        Returns:
+            nodes_pos[np.ndarray]: (*,2)
+            edges_indices[np.ndarray]: (*,2)
+            edges_thickness[np.ndarray]: (*,)
+            adj[np.ndarray]: (*,*)
+        """
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = self.info['edges']['indices']
         return nodes_pos, edges_indices, edges_thickness, adj
