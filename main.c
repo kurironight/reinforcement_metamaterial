@@ -124,6 +124,41 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
+void add_matrix(double **matrix, int row, int col, int n)
+{
+    int i, j;
+    for (i = 0; i < row; i++)
+    {
+        for (j = 0; j < col; j++)
+        {
+            matrix[i][j] = matrix[i][j] + n;
+        }
+    }
+}
+
+void kata(double **nodes_pos, int *edges_indices, double **edges_thickness, int node_num, int edge_num)
+{
+    int j;
+    for (j = 0; j < 5; ++j)
+    {
+        printf("%d  ", edges_indices[j]);
+    }
+    printf("\n");
+    /* 
+    int i, j;
+    printf("\n");
+    for (i = 0; i < 5; ++i)
+    {
+        for (j = 0; j < 2; ++j)
+        {
+            printf("%d  ", edges_indices[i][j]);
+            if (j == 2 - 1)
+                printf("\n");
+        }
+    }
+    */
+}
+
 int main(void)
 {
     double K_e[6][6];
