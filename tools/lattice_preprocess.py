@@ -2,7 +2,7 @@ import numpy as np
 
 
 def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
-                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness):
+                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness=0.2):
 
     new_input_nodes = np.arange(len(origin_input_nodes))
     new_output_nodes = np.arange(

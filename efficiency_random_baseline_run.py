@@ -3,7 +3,6 @@
 import numpy as np
 from env.gym_metamech import MetamechGym
 from tools.lattice_preprocess import make_main_node_edge_info
-from actor_critic_customize import EDGE_THICKNESS
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -93,7 +92,7 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 # gymに入力する要素を抽出
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
-                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
+                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 
 env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
                   new_output_nodes, new_output_vectors, new_frozen_nodes,
