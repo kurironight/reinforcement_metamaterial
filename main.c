@@ -136,18 +136,11 @@ void add_matrix(double **matrix, int row, int col, int n)
     }
 }
 
-void kata(double **nodes_pos, int *edges_indices, double **edges_thickness, int node_num, int edge_num)
+void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num)
 {
-    int j;
-    for (j = 0; j < 5; ++j)
-    {
-        printf("%d  ", edges_indices[j]);
-    }
-    printf("\n");
-    /* 
     int i, j;
     printf("\n");
-    for (i = 0; i < 5; ++i)
+    for (i = 0; i < edge_num; ++i)
     {
         for (j = 0; j < 2; ++j)
         {
@@ -156,7 +149,6 @@ void kata(double **nodes_pos, int *edges_indices, double **edges_thickness, int 
                 printf("\n");
         }
     }
-    */
 }
 
 int main(void)
