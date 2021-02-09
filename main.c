@@ -4,11 +4,9 @@
 #include <math.h>
 #include <time.h>
 
-void print_matrix(double K[6][6])
+void print_matrix(double K[6][6], int row, int column)
 {
     int i, j;
-    int row = 6;
-    int column = 6;
     /* 入力した行列の表示 */
     printf("\n");
     for (i = 0; i < row; ++i)
@@ -61,12 +59,12 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
 
     int i, j;
 
-    vector[0] = node[1][0] - node[0][0];
-    vector[1] = node[1][1] - node[0][1];
+    vector[0] = node[1][0] - node[0][0]; //x軸方面
+    vector[1] = node[1][1] - node[0][1]; //y軸方面
 
     L = sqrt(pow(vector[0], 2) + pow(vector[1], 2));
-    sin = vector[0] / L;
-    cos = vector[1] / L;
+    cos = vector[0] / L;
+    sin = vector[1] / L;
 
     // Tを一旦零行列にする
     for (i = 0; i < 6; i++)
@@ -124,29 +122,71 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void add_matrix(double **matrix, int row, int col, int n)
-{
-    int i, j;
-    for (i = 0; i < row; i++)
-    {
-        for (j = 0; j < col; j++)
-        {
-            matrix[i][j] = matrix[i][j] + n;
-        }
-    }
-}
-
 void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num)
 {
-    int i, j;
-    printf("\n");
+    int i, j, k;
+    int node1, node2;
+    int free_D = 3;
+    double K[node_num * free_D][node_num * free_D];
+    double K_e[6][6];
+    double node[2][2];
+
+    // K行列の初期化
+    for (i = 0; i < node_num * free_D; ++i)
+    {
+        for (j = 0; j < node_num * free_D; ++j)
+        {
+            K[i][j] = 0;
+        }
+    }
+
     for (i = 0; i < edge_num; ++i)
     {
-        for (j = 0; j < 2; ++j)
+        node1 = edges_indices[i][0];
+        node2 = edges_indices[i][1];
+        node[0][0] = nodes_pos[node1][0];
+        node[0][1] = nodes_pos[node1][1];
+        node[1][0] = nodes_pos[node2][0];
+        node[1][1] = nodes_pos[node2][1];
+        /* 入力した行列の表示 */
+        printf("%d回目  ", i);
+        printf("\n");
+        /* 入力した行列の表示 */
+        get_K_element_matrix(K_e, node, edges_thickness[i][0]);
+        print_matrix(K_e, 6, 6);
+
+        // K行列に代入
+        // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入
+        for (j = 0; j < 3; ++j)
         {
-            printf("%d  ", edges_indices[i][j]);
-            if (j == 2 - 1)
-                printf("\n");
+            for (k = 0; k < 3; ++k)
+            {
+                K[node1 * 3 + j][node1 * 3 + k] += K_e[j][k];
+            }
+        }
+        // K12をK[node1*3:(node1+1)*3,node2*3:(node2+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node1 * 3 + j][node2 * 3 + k] += K_e[j][k + 3];
+            }
+        }
+        // K21をK[node2*3:(node2+1)*3,node1*3:(node1+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node2 * 3 + j][node1 * 3 + k] += K_e[j + 3][k];
+            }
+        }
+        // K22をK[node2*3:(node2+1)*3,node2*3:(node2+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node2 * 3 + j][node2 * 3 + k] += K_e[j + 3][k + 3];
+            }
         }
     }
 }
