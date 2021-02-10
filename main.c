@@ -209,14 +209,14 @@ void init_vector(double x[N])
 }
 
 // ベクトルに行列を作用 y = Ax
-void vector_x_matrix(double y[N], double a[N][N], double x[N])
+void vector_x_matrix(double *y, double **a, double *x, int size)
 {
     int i, j;
     double vxm;
-    for (i = 0; i < N; i++)
+    for (i = 0; i < size; i++)
     {
         vxm = 0;
-        for (j = 0; j < N; j++)
+        for (j = 0; j < size; j++)
         {
             vxm += a[i][j] * x[j];
         }
@@ -258,8 +258,20 @@ void cg_method(double a[N][N], double x[N], double b[N])
     static double ap[N];
     int i, iter;
 
+    int size = 10;
+
+    double **A = malloc(size * sizeof(double *));
+    for (int i = 0; i < size; i++)
+    {
+        A[i] = malloc(size * sizeof(double));
+        for (int j = 0; j < size; j++)
+        {
+            A[i][j] = a[i][j];
+        }
+    }
+
     // Axを計算
-    vector_x_matrix(ax, a, x);
+    vector_x_matrix(ax, A, x, 10);
 
     // pとrを計算 p = r := b - Ax
     for (i = 0; i < N; i++)
@@ -274,7 +286,7 @@ void cg_method(double a[N][N], double x[N], double b[N])
         double alpha, beta, err = 0;
 
         // alphaを計算
-        vector_x_matrix(ap, a, p);
+        vector_x_matrix(ap, A, p, 10);
         alpha = dot_product(p, r) / dot_product(p, ap);
 
         for (i = 0; i < N; i++)
@@ -327,3 +339,44 @@ int main(void)
 
     return 0;
 }
+
+/*
+int main(void)
+{
+    double input_num[][10] = {{5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                              {2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                              {0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0},
+                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0}};
+
+    // ポインタを使用して２次元の構造にする
+    int numlen = 10;
+    int numline = sizeof(input_num) / sizeof(double) / numlen;
+    double **num = malloc(numline * sizeof(double *));
+    for (int i = 0; i < numline; i++)
+    {
+        num[i] = malloc(numlen * sizeof(double));
+        for (int j = 0; j < numlen; j++)
+        {
+            num[i][j] = input_num[i][j];
+        }
+    }
+
+    // num_arr2関数の実行
+    num_arr2(num, numline, numlen);
+
+    // メモリの解放
+    for (int i = 0; i < numline; i++)
+    {
+        free(num[i]); //各行のメモリを解放
+    }
+    free(num);
+
+    return 0;
+}
+*/
