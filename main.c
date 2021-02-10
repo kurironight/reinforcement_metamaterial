@@ -153,7 +153,6 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
         printf("\n");
         /* 入力した行列の表示 */
         get_K_element_matrix(K_e, node, edges_thickness[i][0]);
-        print_matrix(K_e, 6, 6);
 
         // K行列に代入
         // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入
@@ -191,33 +190,140 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
     }
 }
 
-int main(void)
-{
-    double K_e[6][6];
-    double M_e[6][6];
-    double c[6][6];
-    // double node[2][2];
-    double length;
-    double A;
+/*==================================================*/
+// CG法テストプログラム
+/*==================================================*/
 
-    int i, j;
-    // zero matrix
-    for (i = 0; i < 6; i++)
+#define N 10
+#define TMAX 100
+#define EPS (1.0e-6)
+
+// ベクトル初期化
+void init_vector(double x[N])
+{
+    int i;
+    for (i = 0; i < N; i++)
     {
-        for (j = 0; j < 6; j++)
+        x[i] = 0;
+    }
+}
+
+// ベクトルに行列を作用 y = Ax
+void vector_x_matrix(double y[N], double a[N][N], double x[N])
+{
+    int i, j;
+    double vxm;
+    for (i = 0; i < N; i++)
+    {
+        vxm = 0;
+        for (j = 0; j < N; j++)
         {
-            K_e[i][j] = i;
+            vxm += a[i][j] * x[j];
+        }
+        y[i] = vxm;
+    }
+}
+
+// 内積を計算
+double dot_product(double x[N], double y[N])
+{
+    int i;
+    double dot_p = 0;
+    for (i = 0; i < N; i++)
+    {
+        dot_p += x[i] * y[i];
+    }
+    return dot_p;
+}
+
+// ベクトルノルムを計算
+// ベクトルノルム := sgm(0〜N-1)|x[i]|
+double vector_norm(double x[N])
+{
+    int i;
+    double norm = 0;
+    for (i = 0; i < N; i++)
+    {
+        norm += fabs(x[i]);
+    }
+    return norm;
+}
+
+// CG法
+void cg_method(double a[N][N], double x[N], double b[N])
+{
+    static Vector p; // 探索方向ベクトル
+    static Vector r; // 残差ベクトル
+    static Vector ax;
+    static Vector ap;
+    int i, iter;
+
+    // Axを計算
+    vector_x_matrix(ax, a, x);
+
+    // pとrを計算 p = r := b - Ax
+    for (i = 0; i < N; i++)
+    {
+        p[i] = b[i] - ax[i];
+        r[i] = p[i];
+    }
+
+    // 反復計算
+    for (iter = 1; iter < TMAX; iter++)
+    {
+        double alpha, beta, err = 0;
+
+        // alphaを計算
+        vector_x_matrix(ap, a, p);
+        alpha = dot_product(p, r) / dot_product(p, ap);
+
+        for (i = 0; i < N; i++)
+        {
+            x[i] += +alpha * p[i];
+            r[i] += -alpha * ap[i];
+        }
+
+        err = vector_norm(r); // 誤差を計算
+        printf("LOOP : %d\t Error : %g\n", iter, err);
+        if (EPS > err)
+            break;
+
+        // EPS < err ならbetaとpを計算してループを継続
+        beta = -dot_product(r, ap) / dot_product(p, ap);
+        for (i = 0; i < N; i++)
+        {
+            p[i] = r[i] + beta * p[i];
         }
     }
-    A = 2;
+}
 
-    double node[2][2] = {1.0, 3.5, 3.0, 4.0};
-    clock_t start, end;
-    start = clock();
+int main(void)
+{
+    // 連立方程式 Ax = b
+    // 行列Aは正定値対象行列
+    double a[N][N] = {{5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                      {2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                      {0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                      {0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                      {0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0},
+                      {0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0},
+                      {0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0},
+                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0},
+                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0},
+                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0}};
+    double b[N] = {3.0, 1.0, 4.0, 0.0, 5.0, -1.0, 6.0, -2.0, 7.0, -15.0};
+    // 初期値は適当
+    double x[N] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    int i;
 
-    get_K_element_matrix(K_e, node, A);
+    // CG法でAx=bを解く
+    cg_method(a, x, b);
 
-    end = clock();
-    printf("%.2f秒かかりました\n", (double)(end - start) / CLOCKS_PER_SEC);
+    printf("###Calc End.###\n");
+    for (i = 0; i < N; i++)
+    {
+        printf("x[%d] = %2g\n", i, x[i]);
+    }
+
     return 0;
 }
