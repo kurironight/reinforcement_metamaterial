@@ -122,7 +122,7 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num)
+void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int *input_nodes, double **input_vectors, int *frozen_nodes)
 {
     int i, j, k;
     int node1, node2;
