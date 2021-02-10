@@ -188,6 +188,41 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
             }
         }
     }
+
+    int input_node_num = sizeof input_nodes / sizeof input_nodes[0];
+    int frozen_node_num = sizeof frozen_nodes / sizeof frozen_nodes[0];
+
+    // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
+    int *indexes_array = malloc((input_node_num * 2 + frozen_node_num * 3) * sizeof(int));
+    double *f_array = malloc((input_node_num * 2 + frozen_node_num * 3) * sizeof(double));
+    for (int i = 0; i < input_node_num; i++)
+    {
+        indexes_array[i * 2 + 0] = input_nodes[i] * 3 + 0;
+        indexes_array[i * 2 + 1] = input_nodes[i] * 3 + 1;
+
+        f_array[i * 2 + 0] = input_vectors[i][0];
+        f_array[i * 2 + 1] = input_vectors[i][1];
+    }
+    for (int i = 0; i < frozen_node_num; i++)
+    {
+        indexes_array[input_node_num * 2 + i * 3 + 0] = frozen_nodes[i] * 3 + 0;
+        indexes_array[input_node_num * 2 + i * 3 + 1] = frozen_nodes[i] * 3 + 1;
+        indexes_array[input_node_num * 2 + i * 3 + 2] = frozen_nodes[i] * 3 + 2;
+
+        f_array[input_node_num * 2 + i * 3 + 0] = 0.0;
+        f_array[input_node_num * 2 + i * 3 + 1] = 0.0;
+        f_array[input_node_num * 2 + i * 3 + 2] = 0.0;
+    }
+
+    /* 入力した行列の表示 */
+    printf("\n");
+    for (i = 0; i < input_node_num * 2 + frozen_node_num * 3; ++i)
+    {
+        printf("%f  ", f_array[i]);
+    }
+
+    free(indexes_array);
+    free(f_array);
 }
 
 /*==================================================*/
