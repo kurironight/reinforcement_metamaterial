@@ -4,6 +4,107 @@
 #include <math.h>
 #include <time.h>
 
+#define TMAX 100
+#define EPS (1.0e-6)
+
+// ベクトルに行列を作用 y = Ax
+void vector_x_matrix(double *y, double **a, double *x, int size)
+{
+    int i, j;
+    double vxm;
+    for (i = 0; i < size; i++)
+    {
+        vxm = 0;
+        for (j = 0; j < size; j++)
+        {
+            vxm += a[i][j] * x[j];
+        }
+        y[i] = vxm;
+    }
+}
+
+// 内積を計算
+double dot_product(double *x, double *y, int size)
+{
+    int i;
+    double dot_p = 0;
+    for (i = 0; i < size; i++)
+    {
+        dot_p += x[i] * y[i];
+    }
+    return dot_p;
+}
+
+// ベクトルノルムを計算
+double vector_norm(double *x, int size)
+{
+    int i;
+    double norm = 0;
+    for (i = 0; i < size; i++)
+    {
+        norm += fabs(x[i]);
+    }
+    return norm;
+}
+
+// CG法
+void cg_method(double **a, double *x, double *b, int size)
+{
+    int i, iter;
+    double *p = malloc(size * sizeof(double));
+    double *r = malloc(size * sizeof(double));
+    double *ax = malloc(size * sizeof(double));
+    double *ap = malloc(size * sizeof(double));
+
+    // Axを計算
+    vector_x_matrix(ax, a, x, size);
+
+    // pとrを計算 p = r := b - Ax
+    for (i = 0; i < size; i++)
+    {
+        p[i] = b[i] - ax[i];
+        r[i] = p[i];
+    }
+
+    // 反復計算
+    for (iter = 1; iter < TMAX; iter++)
+    {
+        double alpha, beta, err = 0;
+
+        // alphaを計算
+        vector_x_matrix(ap, a, p, size);
+        alpha = dot_product(p, r, size) / dot_product(p, ap, size);
+
+        for (i = 0; i < size; i++)
+        {
+            x[i] += +alpha * p[i];
+            r[i] += -alpha * ap[i];
+        }
+
+        err = vector_norm(r, size); // 誤差を計算
+        printf("LOOP : %d\t Error : %g\n", iter, err);
+        if (EPS > err)
+            break;
+
+        // EPS < err ならbetaとpを計算してループを継続
+        beta = -dot_product(r, ap, size) / dot_product(p, ap, size);
+        for (i = 0; i < size; i++)
+        {
+            p[i] = r[i] + beta * p[i];
+        }
+        if (iter == TMAX && EPS < err)
+        {
+            printf("失敗\n");
+            exit(1);
+        }
+    }
+
+    free(p);
+    free(r);
+    free(ax);
+    free(ap);
+}
+
 void print_matrix(double K[6][6], int row, int column)
 {
     int i, j;
@@ -127,14 +228,16 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
     int i, j, k;
     int node1, node2;
     int free_D = 3;
-    double K[node_num * free_D][node_num * free_D];
+    int all_element_size = node_num * free_D;
+    double K[all_element_size][all_element_size];
     double K_e[6][6];
+    double F[all_element_size];
     double node[2][2];
 
     // K行列の初期化
-    for (i = 0; i < node_num * free_D; ++i)
+    for (i = 0; i < all_element_size; ++i)
     {
-        for (j = 0; j < node_num * free_D; ++j)
+        for (j = 0; j < all_element_size; ++j)
         {
             K[i][j] = 0;
         }
@@ -149,7 +252,6 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
         node[1][0] = nodes_pos[node2][0];
         node[1][1] = nodes_pos[node2][1];
         /* 入力した行列の表示 */
-        printf("%d回目  ", i);
         printf("\n");
         /* 入力した行列の表示 */
         get_K_element_matrix(K_e, node, edges_thickness[i][0]);
@@ -191,10 +293,11 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
 
     int input_node_num = sizeof input_nodes / sizeof input_nodes[0];
     int frozen_node_num = sizeof frozen_nodes / sizeof frozen_nodes[0];
+    int condition_element_num = input_node_num * 2 + frozen_node_num * 3;
 
     // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
-    int *indexes_array = malloc((input_node_num * 2 + frozen_node_num * 3) * sizeof(int));
-    double *f_array = malloc((input_node_num * 2 + frozen_node_num * 3) * sizeof(double));
+    int *indexes_array = malloc(condition_element_num * sizeof(int));
+    double *f_array = malloc(condition_element_num * sizeof(double));
     for (int i = 0; i < input_node_num; i++)
     {
         indexes_array[i * 2 + 0] = input_nodes[i] * 3 + 0;
@@ -214,164 +317,58 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
         f_array[input_node_num * 2 + i * 3 + 2] = 0.0;
     }
 
-    /* 入力した行列の表示 */
-    printf("\n");
-    for (i = 0; i < input_node_num * 2 + frozen_node_num * 3; ++i)
+    //F行列の初期化
+    for (i = 0; i < all_element_size; ++i)
     {
-        printf("%f  ", f_array[i]);
+        F[i] = 0;
     }
 
-    free(indexes_array);
-    free(f_array);
-}
-
-/*==================================================*/
-// CG法テストプログラム
-/*==================================================*/
-
-#define N 10
-#define TMAX 100
-#define EPS (1.0e-6)
-
-// ベクトルに行列を作用 y = Ax
-void vector_x_matrix(double *y, double **a, double *x, int size)
-{
-    int i, j;
-    double vxm;
-    for (i = 0; i < size; i++)
+    //F,K行列に条件を適用
+    for (i = 0; i < condition_element_num; ++i)
     {
-        vxm = 0;
-        for (j = 0; j < size; j++)
+        int target_index = indexes_array[i];
+        //makinf F matrix
+        for (j = 0; j < all_element_size; ++j)
         {
-            vxm += a[i][j] * x[j];
+            F[j] -= K[j][target_index] * f_array[i];
         }
-        y[i] = vxm;
-    }
-}
+        F[target_index] = f_array[i];
 
-// 内積を計算
-double dot_product(double *x, double *y, int size)
-{
-    int i;
-    double dot_p = 0;
-    for (i = 0; i < size; i++)
-    {
-        dot_p += x[i] * y[i];
-    }
-    return dot_p;
-}
-
-// ベクトルノルムを計算
-// ベクトルノルム := sgm(0〜N-1)|x[i]|
-double vector_norm(double *x, int size)
-{
-    int i;
-    double norm = 0;
-    for (i = 0; i < N; i++)
-    {
-        norm += fabs(x[i]);
-    }
-    return norm;
-}
-
-// CG法
-void cg_method(double **a, double *x, double *b, int size)
-{
-    int i, iter;
-    double *p = malloc(size * sizeof(double));
-    double *r = malloc(size * sizeof(double));
-    double *ax = malloc(size * sizeof(double));
-    double *ap = malloc(size * sizeof(double));
-
-    // Axを計算
-    vector_x_matrix(ax, a, x, 10);
-
-    // pとrを計算 p = r := b - Ax
-    for (i = 0; i < size; i++)
-    {
-        p[i] = b[i] - ax[i];
-        r[i] = p[i];
-    }
-
-    // 反復計算
-    for (iter = 1; iter < TMAX; iter++)
-    {
-        double alpha, beta, err = 0;
-
-        // alphaを計算
-        vector_x_matrix(ap, a, p, 10);
-        alpha = dot_product(p, r, size) / dot_product(p, ap, size);
-
-        for (i = 0; i < size; i++)
+        //makinf K matrix
+        for (j = 0; j < all_element_size; ++j)
         {
-            x[i] += +alpha * p[i];
-            r[i] += -alpha * ap[i];
+            K[target_index][j] = 0;
+            K[j][target_index] = 0;
         }
+        K[target_index][target_index] = 1;
+    }
 
-        err = vector_norm(r, size); // 誤差を計算
-        printf("LOOP : %d\t Error : %g\n", iter, err);
-        if (EPS > err)
-            break;
-
-        // EPS < err ならbetaとpを計算してループを継続
-        beta = -dot_product(r, ap, size) / dot_product(p, ap, size);
-        for (i = 0; i < size; i++)
+    // CGをかける為の形にする
+    double **A = malloc(all_element_size * sizeof(double *));
+    for (int i = 0; i < all_element_size; i++)
+    {
+        A[i] = malloc(all_element_size * sizeof(double));
+        for (int j = 0; j < all_element_size; j++)
         {
-            p[i] = r[i] + beta * p[i];
+            A[i][j] = K[i][j];
         }
     }
-
-    free(p);
-    free(r);
-    free(ax);
-    free(ap);
-}
-
-int main(void)
-{
-    // 連立方程式 Ax = b
-    // 行列Aは正定値対象行列
-    double a[N][N] = {{5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                      {2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                      {0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                      {0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                      {0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0},
-                      {0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0},
-                      {0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0},
-                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0},
-                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0},
-                      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0}};
-    double b[N] = {3.0, 1.0, 4.0, 0.0, 5.0, -1.0, 6.0, -2.0, 7.0, -15.0};
-    // 初期値は適当
-    double x[N] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    int i;
-    int size = 10;
-
-    double **A = malloc(size * sizeof(double *));
-    for (int i = 0; i < size; i++)
+    // xの初期値は適当
+    double x[all_element_size];
+    for (i = 0; i < all_element_size; ++i)
     {
-        A[i] = malloc(size * sizeof(double));
-        for (int j = 0; j < size; j++)
-        {
-            A[i][j] = a[i][j];
-        }
+        x[i] = 0;
     }
 
     // CG法でAx=bを解く
-    cg_method(A, x, b, size);
-
-    printf("###Calc End.###\n");
-    for (i = 0; i < size; i++)
-    {
-        printf("x[%d] = %2g\n", i, x[i]);
-    }
+    cg_method(A, x, F, all_element_size);
 
     // メモリの解放
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < all_element_size; i++)
     {
         free(A[i]); //各行のメモリを解放
     }
     free(A);
-
-    return 0;
+    free(indexes_array);
+    free(f_array);
 }
