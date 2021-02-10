@@ -252,10 +252,10 @@ double vector_norm(double x[N])
 // CG法
 void cg_method(double a[N][N], double x[N], double b[N])
 {
-    static Vector p; // 探索方向ベクトル
-    static Vector r; // 残差ベクトル
-    static Vector ax;
-    static Vector ap;
+    static double p[N]; // 探索方向ベクトル
+    static double r[N]; // 残差ベクトル
+    static double ax[N];
+    static double ap[N];
     int i, iter;
 
     // Axを計算
