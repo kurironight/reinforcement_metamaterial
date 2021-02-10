@@ -198,16 +198,6 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
 #define TMAX 100
 #define EPS (1.0e-6)
 
-// ベクトル初期化
-void init_vector(double x[N])
-{
-    int i;
-    for (i = 0; i < N; i++)
-    {
-        x[i] = 0;
-    }
-}
-
 // ベクトルに行列を作用 y = Ax
 void vector_x_matrix(double *y, double **a, double *x, int size)
 {
@@ -225,11 +215,11 @@ void vector_x_matrix(double *y, double **a, double *x, int size)
 }
 
 // 内積を計算
-double dot_product(double x[N], double y[N])
+double dot_product(double *x, double *y, int size)
 {
     int i;
     double dot_p = 0;
-    for (i = 0; i < N; i++)
+    for (i = 0; i < size; i++)
     {
         dot_p += x[i] * y[i];
     }
@@ -238,7 +228,7 @@ double dot_product(double x[N], double y[N])
 
 // ベクトルノルムを計算
 // ベクトルノルム := sgm(0〜N-1)|x[i]|
-double vector_norm(double x[N])
+double vector_norm(double *x, int size)
 {
     int i;
     double norm = 0;
@@ -250,31 +240,19 @@ double vector_norm(double x[N])
 }
 
 // CG法
-void cg_method(double a[N][N], double x[N], double b[N])
+void cg_method(double **a, double *x, double *b, int size)
 {
-    static double p[N]; // 探索方向ベクトル
-    static double r[N]; // 残差ベクトル
-    static double ax[N];
-    static double ap[N];
     int i, iter;
-
-    int size = 10;
-
-    double **A = malloc(size * sizeof(double *));
-    for (int i = 0; i < size; i++)
-    {
-        A[i] = malloc(size * sizeof(double));
-        for (int j = 0; j < size; j++)
-        {
-            A[i][j] = a[i][j];
-        }
-    }
+    double *p = malloc(size * sizeof(double));
+    double *r = malloc(size * sizeof(double));
+    double *ax = malloc(size * sizeof(double));
+    double *ap = malloc(size * sizeof(double));
 
     // Axを計算
-    vector_x_matrix(ax, A, x, 10);
+    vector_x_matrix(ax, a, x, 10);
 
     // pとrを計算 p = r := b - Ax
-    for (i = 0; i < N; i++)
+    for (i = 0; i < size; i++)
     {
         p[i] = b[i] - ax[i];
         r[i] = p[i];
@@ -286,27 +264,32 @@ void cg_method(double a[N][N], double x[N], double b[N])
         double alpha, beta, err = 0;
 
         // alphaを計算
-        vector_x_matrix(ap, A, p, 10);
-        alpha = dot_product(p, r) / dot_product(p, ap);
+        vector_x_matrix(ap, a, p, 10);
+        alpha = dot_product(p, r, size) / dot_product(p, ap, size);
 
-        for (i = 0; i < N; i++)
+        for (i = 0; i < size; i++)
         {
             x[i] += +alpha * p[i];
             r[i] += -alpha * ap[i];
         }
 
-        err = vector_norm(r); // 誤差を計算
+        err = vector_norm(r, size); // 誤差を計算
         printf("LOOP : %d\t Error : %g\n", iter, err);
         if (EPS > err)
             break;
 
         // EPS < err ならbetaとpを計算してループを継続
-        beta = -dot_product(r, ap) / dot_product(p, ap);
-        for (i = 0; i < N; i++)
+        beta = -dot_product(r, ap, size) / dot_product(p, ap, size);
+        for (i = 0; i < size; i++)
         {
             p[i] = r[i] + beta * p[i];
         }
     }
+
+    free(p);
+    free(r);
+    free(ax);
+    free(ap);
 }
 
 int main(void)
@@ -327,56 +310,33 @@ int main(void)
     // 初期値は適当
     double x[N] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
     int i;
+    int size = 10;
+
+    double **A = malloc(size * sizeof(double *));
+    for (int i = 0; i < size; i++)
+    {
+        A[i] = malloc(size * sizeof(double));
+        for (int j = 0; j < size; j++)
+        {
+            A[i][j] = a[i][j];
+        }
+    }
 
     // CG法でAx=bを解く
-    cg_method(a, x, b);
+    cg_method(A, x, b, size);
 
     printf("###Calc End.###\n");
-    for (i = 0; i < N; i++)
+    for (i = 0; i < size; i++)
     {
         printf("x[%d] = %2g\n", i, x[i]);
     }
 
-    return 0;
-}
-
-/*
-int main(void)
-{
-    double input_num[][10] = {{5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                              {2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                              {0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                              {0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                              {0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0, 0.0},
-                              {0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0, 0.0},
-                              {0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0, 0.0},
-                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0, 0.0},
-                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 2.0},
-                              {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0}};
-
-    // ポインタを使用して２次元の構造にする
-    int numlen = 10;
-    int numline = sizeof(input_num) / sizeof(double) / numlen;
-    double **num = malloc(numline * sizeof(double *));
-    for (int i = 0; i < numline; i++)
-    {
-        num[i] = malloc(numlen * sizeof(double));
-        for (int j = 0; j < numlen; j++)
-        {
-            num[i][j] = input_num[i][j];
-        }
-    }
-
-    // num_arr2関数の実行
-    num_arr2(num, numline, numlen);
-
     // メモリの解放
-    for (int i = 0; i < numline; i++)
+    for (int i = 0; i < size; i++)
     {
-        free(num[i]); //各行のメモリを解放
+        free(A[i]); //各行のメモリを解放
     }
-    free(num);
+    free(A);
 
     return 0;
 }
-*/
