@@ -82,7 +82,6 @@ void cg_method(double **a, double *x, double *b, int size)
         }
 
         err = vector_norm(r, size); // 誤差を計算
-        printf("LOOP : %d\t Error : %g\n", iter, err);
         if (EPS > err)
             break;
 
@@ -223,7 +222,7 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int *input_nodes, double **input_vectors, int *frozen_nodes)
+void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int *input_nodes, double **input_vectors, int *frozen_nodes, double **displacement)
 {
     int i, j, k;
     int node1, node2;
@@ -251,9 +250,6 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
         node[0][1] = nodes_pos[node1][1];
         node[1][0] = nodes_pos[node2][0];
         node[1][1] = nodes_pos[node2][1];
-        /* 入力した行列の表示 */
-        printf("\n");
-        /* 入力した行列の表示 */
         get_K_element_matrix(K_e, node, edges_thickness[i][0]);
 
         // K行列に代入
@@ -367,6 +363,11 @@ void kata(double **nodes_pos, int **edges_indices, double **edges_thickness, int
     for (int i = 0; i < all_element_size; i++)
     {
         free(A[i]); //各行のメモリを解放
+    }
+
+    for (i = 0; i < all_element_size; ++i)
+    {
+        displacement[i][0] = x[i];
     }
     free(A);
     free(indexes_array);
