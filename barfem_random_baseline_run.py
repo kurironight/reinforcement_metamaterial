@@ -1,9 +1,9 @@
 """metamechのefficiency計算を基にしたMetamechGymに関するrandom施策のコード例
     """
 import numpy as np
-from env.gym_metamech import MetamechGym
+from env.gym_barfem import BarFemGym
 from tools.lattice_preprocess import make_main_node_edge_info
-
+import time
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
     [0., 0.86603], [0.5, 0.], [1., 0.86603], [1.5, 0.],
@@ -79,11 +79,8 @@ origin_input_vectors = np.array([
     [0., -0.1]
 ])
 
-origin_output_nodes = [68, 69, 70, 71]
+origin_output_nodes = [68]
 origin_output_vectors = np.array([
-    [-1, 0],
-    [-1, 0],
-    [-1, 0],
     [-1, 0],
 ])
 
@@ -94,39 +91,30 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 
-env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
-                  new_output_nodes, new_output_vectors, new_frozen_nodes,
-                  new_edges_indices, new_edges_thickness)
+env = BarFemGym(new_node_pos, new_input_nodes, new_input_vectors,
+                new_output_nodes, new_output_vectors, new_frozen_nodes,
+                new_edges_indices, new_edges_thickness)
 
 # １エピソードのループ
 state = env.reset()
-
-for i in range(70):
+total_time = 0
+total_calc_time = 0
+for i in range(500):
     # ランダム行動の取得
     action = env.random_action()
     # １ステップの実行
     state, reward, done, info = env.step(action)
-
     if env.confirm_graph_is_connected():
         reward = 0
+        start = time.time()
         efficiency = env.calculate_simulation()
-        if efficiency > 0:
-            reward = efficiency
-        else:
-            reward = 0
+        elapsed_time = time.time() - start
+        print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+        reward = efficiency
+
+        total_time += elapsed_time
+        total_calc_time += 1
     else:
         reward = -1
 
-    print('{}steps  reward:{}'.format(i, reward))
-
-    # if env.confirm_graph_is_connected():
-    #    nodes_pos, edges_indices, edges_thickness = env.extract_info_for_lattice()
-    #    #np.save('check_np/nodes_pos{}.npy'.format(i), nodes_pos)
-    #    #np.save('check_np/edges_indices{}.npy'.format(i), edges_indices)
-    #    #np.save('check_np/edges_thickness{}.npy'.format(i), edges_thickness)
-    #    # env.render("no_change_stiffness/image{}.png".format(i))
-
-    # エピソード完了
-    # if done:
-    #    print('done')
-    #    break
+print("一回辺りの計算時間:", total_time/total_calc_time)

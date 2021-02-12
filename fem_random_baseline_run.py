@@ -3,7 +3,7 @@
 import numpy as np
 from env.gym_fem import FEMGym
 from tools.lattice_preprocess import make_main_node_edge_info
-from actor_critic_customize import EDGE_THICKNESS
+import time
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -94,7 +94,7 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 # gymに入力する要素を抽出
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
-                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
+                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 env = FEMGym(new_node_pos,
              new_edges_indices, new_edges_thickness)
 
@@ -102,16 +102,27 @@ env = FEMGym(new_node_pos,
 state = env.reset()
 env.confirm_graph_is_connected()
 env.render("fem_images/image_first.png")
-
-for i in range(100):
+total_time = 0
+total_calc_time = 0
+for i in range(500):
     # ランダム行動の取得
     action = env.random_action()
     # １ステップの実行
     state, reward, done, info = env.step(action)
     if env.confirm_graph_is_connected():
-        reward = env.calculate_simulation()
-        # env.render("fem_images/graph_connected{}.png".format(i))
-    print('{}steps  reward:{}'.format(i, reward))
+        reward = 0
+        start = time.time()
+        efficiency = env.calculate_simulation()
+        elapsed_time = time.time() - start
+        print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+        reward = efficiency
+
+        total_time += elapsed_time
+        total_calc_time += 1
+    else:
+        reward = -1
+
+print("一回辺りの計算時間:", total_time/total_calc_time)
 
 # エピソード完了
 # if done:
