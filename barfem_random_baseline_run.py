@@ -97,13 +97,13 @@ env = BarFemGym(new_node_pos, new_input_nodes, new_input_vectors,
 
 # １エピソードのループ
 state = env.reset()
-
-for i in range(70):
+total_time = 0
+total_calc_time = 0
+for i in range(500):
     # ランダム行動の取得
     action = env.random_action()
     # １ステップの実行
     state, reward, done, info = env.step(action)
-
     if env.confirm_graph_is_connected():
         reward = 0
         start = time.time()
@@ -111,7 +111,10 @@ for i in range(70):
         elapsed_time = time.time() - start
         print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
         reward = efficiency
+
+        total_time += elapsed_time
+        total_calc_time += 1
     else:
         reward = -1
 
-    print('{}steps  reward:{}'.format(i, reward))
+print("一回辺りの計算時間:", total_time/total_calc_time)

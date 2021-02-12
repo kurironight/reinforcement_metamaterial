@@ -3,6 +3,7 @@
 import numpy as np
 from env.gym_fem import FEMGym
 from tools.lattice_preprocess import make_main_node_edge_info
+import time
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -101,16 +102,27 @@ env = FEMGym(new_node_pos,
 state = env.reset()
 env.confirm_graph_is_connected()
 env.render("fem_images/image_first.png")
-
-for i in range(100):
+total_time = 0
+total_calc_time = 0
+for i in range(500):
     # ランダム行動の取得
     action = env.random_action()
     # １ステップの実行
     state, reward, done, info = env.step(action)
     if env.confirm_graph_is_connected():
-        reward = env.calculate_simulation()
-        # env.render("fem_images/graph_connected{}.png".format(i))
-    print('{}steps  reward:{}'.format(i, reward))
+        reward = 0
+        start = time.time()
+        efficiency = env.calculate_simulation()
+        elapsed_time = time.time() - start
+        print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+        reward = efficiency
+
+        total_time += elapsed_time
+        total_calc_time += 1
+    else:
+        reward = -1
+
+print("一回辺りの計算時間:", total_time/total_calc_time)
 
 # エピソード完了
 # if done:

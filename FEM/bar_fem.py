@@ -1,5 +1,4 @@
 import ctypes as ct
-from ctypes import *
 import ctypes.util
 from numpy.ctypeslib import ndpointer
 import numpy as np
@@ -17,7 +16,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     # doubleのポインタのポインタ型を用意
     _DOUBLE_PP = ndpointer(dtype=np.uintp, ndim=1, flags='C')
     # 関数の引数の型を指定(ctypes)　
-    libc.bar_fem.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, c_int32, c_int32,
+    libc.bar_fem.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, ct.c_int32, ct.c_int32,
                              ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP]
     # 関数が返す値の型を指定(今回は返り値なし)
     libc.bar_fem.restype = None
