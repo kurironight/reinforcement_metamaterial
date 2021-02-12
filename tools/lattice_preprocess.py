@@ -44,8 +44,8 @@ def make_main_edges_indices(edges_indices, input_nodes, output_nodes, frozen_nod
     return new_edges_indices
 
 
-def make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_node, origin_input_vectors,
-                               origin_output_node, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness):
+def make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
+                               origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness):
     """連続状態をランダムで生成する．
 
     Args:
@@ -53,16 +53,16 @@ def make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, ori
         origin_edges_indices (np.array): 
         origin_input_node (list)): 
         origin_input_vectors (np.array): 
-        origin_output_node (list)): 
+        origin_output_nodes (list)): 
         origin_output_vectors (np.array): 
         origin_frozen_nodes (list)): 
         condition_edge_thickness (float): 環境エッジの太さ
     """
 
-    new_node_pos, new_input_nodes, _, new_output_nodes, _, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_node, origin_input_vectors,
-                                                                                                                                               origin_output_node, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness)
+    new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
+                                                                                                                                                                                origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness)
 
-    # 固定ノード部分しか情報を持たないことを想定
+    # 固定ノード部分同士の連結しか情報を持たないことを想定
     assert (not np.isin(0, new_edges_indices)) or (not np.isin(
         1, new_edges_indices)), "origin_edge_indices includes input and output node's indices"
 
@@ -82,4 +82,4 @@ def make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, ori
     new_edges_indices = np.concatenate(
         [new_edges_indices, input_add_edge_indices, output_add_edge_indices])
 
-    return new_node_pos, new_edges_indices, new_edges_thickness
+    return new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness

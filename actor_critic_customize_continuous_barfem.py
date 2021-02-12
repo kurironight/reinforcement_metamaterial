@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-from env.gym_fem import FEMGym
+from env.gym_barfem import BarFemGym
 from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 import torch.distributions as tdist
 from tools.lattice_preprocess import make_continuous_init_graph
@@ -89,16 +89,10 @@ origin_edges_indices = np.array([
 origin_input_nodes = [84]
 origin_input_vectors = np.array([
     [0., -0.1],
-    [0., -0.1],
-    [0., -0.1],
-    [0., -0.1]
 ])
 
 origin_output_nodes = [68]
 origin_output_vectors = np.array([
-    [-1, 0],
-    [-1, 0],
-    [-1, 0],
     [-1, 0],
 ])
 
@@ -106,12 +100,12 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "test3"  # 実験名
+test_name = "test5"  # 実験名
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
-train_num = 20  # 学習回数
+train_num = 50  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
 penalty = 0.001  # 連続状態から不連続状態になった時のペナルティ
 final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
@@ -147,11 +141,12 @@ Edge_thickness = model.Edge_thickness_model(
 while(1):
     new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                                   origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
-    env = FEMGym(new_node_pos,
-                 new_edges_indices, new_edges_thickness)
+    env = BarFemGym(new_node_pos, new_input_nodes, new_input_vectors,
+                    new_output_nodes, new_output_vectors, new_frozen_nodes,
+                    new_edges_indices, new_edges_thickness)
     env.reset()
     if env.confirm_graph_is_connected():
-        env.render('render_image/yatta.png')
+        # env.render('render_image/yatta.png')
         break
 
 Saved_Action = namedtuple('SavedAction', ['action', 'value'])
@@ -413,8 +408,9 @@ def main():
     while(1):
         new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                                       origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
-        env = FEMGym(new_node_pos,
-                     new_edges_indices, new_edges_thickness)
+        env = BarFemGym(new_node_pos, new_input_nodes, new_input_vectors,
+                        new_output_nodes, new_output_vectors, new_frozen_nodes,
+                        new_edges_indices, new_edges_thickness)
         env.reset()
         if env.confirm_graph_is_connected():
             break
@@ -429,8 +425,9 @@ def main():
         while(1):
             new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                                           origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
-            env = FEMGym(new_node_pos,
-                         new_edges_indices, new_edges_thickness)
+            env = BarFemGym(new_node_pos, new_input_nodes, new_input_vectors,
+                            new_output_nodes, new_output_vectors, new_frozen_nodes,
+                            new_edges_indices, new_edges_thickness)
             env.reset()
             if env.confirm_graph_is_connected():
                 break
@@ -485,8 +482,8 @@ def main():
             best_epoch = epoch
             best_efficiency = result_efficiency
             save_model(save_name="Good")
-            env.render(os.path.join(
-                log_dir, 'render_image/{}.png'.format(epoch+1)))
+            # env.render(os.path.join(
+            #    log_dir, 'render_image/{}.png'.format(epoch+1)))
 
         history['epoch'].append(epoch+1)
         history['loss'].append(loss)
