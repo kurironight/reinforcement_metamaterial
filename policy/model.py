@@ -3,6 +3,17 @@ from GCN.layer import CensNet
 import torch.nn.functional as F
 
 
+def adopt_batch_norm(node, edge, b1, b2):
+    node = node.permute(0, 2, 1)  # BatchNormを適用するための手順
+    edge = edge.permute(0, 2, 1)  # BatchNormを適用するための手順
+    node = b1(node)
+    edge = b2(edge)
+    node = node.permute(0, 2, 1)
+    edge = edge.permute(0, 2, 1)
+
+    return node, edge
+
+
 class GCN_fund_model(torch.nn.Module):
     def __init__(self, node_in_features, edge_in_features, node_out_features,
                  edge_out_features):
@@ -14,6 +25,11 @@ class GCN_fund_model(torch.nn.Module):
         self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
         self.predict_v2 = torch.nn.Linear(node_out_features, 1)
 
+        self.b1 = torch.nn.BatchNorm1d(node_out_features)
+        self.b2 = torch.nn.BatchNorm1d(edge_out_features)
+        self.b3 = torch.nn.BatchNorm1d(node_out_features)
+        self.b4 = torch.nn.BatchNorm1d(edge_out_features)
+
         self.saved_actions = []
         self.rewards = []
         self.node_nums = []
@@ -23,7 +39,9 @@ class GCN_fund_model(torch.nn.Module):
         forward of both actor and critic
         """
         node, edge = self.GCN1(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        node, edge = adopt_batch_norm(node, edge, self.b1, self.b2)
         node, edge = self.GCN2(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        node, edge = adopt_batch_norm(node, edge, self.b3, self.b4)
         value = F.relu(self.predict_v1(node))  # 1*node_num*node_out_features
         value = torch.mean(value, dim=1)  # 1*node_out_features
         value = self.predict_v2(value)  # 1*1
