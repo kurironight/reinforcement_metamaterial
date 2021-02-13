@@ -2,7 +2,6 @@ import ctypes as ct
 import ctypes.util
 from numpy.ctypeslib import ndpointer
 import numpy as np
-import pickle
 
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
