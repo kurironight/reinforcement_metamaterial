@@ -222,7 +222,7 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int *input_nodes, double **input_vectors, int *frozen_nodes, double **displacement)
+void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_vectors, int frozen_node_num, int *frozen_nodes, double **displacement)
 {
     int i, j, k;
     int node1, node2;
@@ -287,8 +287,6 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
         }
     }
 
-    int input_node_num = sizeof input_nodes / sizeof input_nodes[0];
-    int frozen_node_num = sizeof frozen_nodes / sizeof frozen_nodes[0];
     int condition_element_num = input_node_num * 2 + frozen_node_num * 3;
 
     // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
