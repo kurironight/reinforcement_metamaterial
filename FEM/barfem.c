@@ -156,6 +156,7 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     double L, sin, cos, coef;
     double T[6][6], K_zero[6][6], T_trans[6][6], K_e_ref[6][6];
     double E = 1.0; //弾性率
+    double Iz_A = A * A / 12;
 
     int i, j;
 
@@ -196,26 +197,26 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     coef = E * A / (pow(L, 3));
     K_zero[0][0] = coef * L * L;
     K_zero[3][0] = -coef * L * L;
-    K_zero[1][1] = coef * 12;
-    K_zero[1][2] = coef * 6 * L;
-    K_zero[1][4] = -coef * 12;
-    K_zero[1][5] = coef * 6 * L;
-    K_zero[2][2] = coef * 4 * L * L;
-    K_zero[2][4] = -coef * 6 * L;
-    K_zero[2][5] = coef * 2 * L * L;
+    K_zero[1][1] = coef * 12 * Iz_A;
+    K_zero[1][2] = coef * 6 * L * Iz_A;
+    K_zero[1][4] = -coef * 12 * Iz_A;
+    K_zero[1][5] = coef * 6 * L * Iz_A;
+    K_zero[2][2] = coef * 4 * L * L * Iz_A;
+    K_zero[2][4] = -coef * 6 * L * Iz_A;
+    K_zero[2][5] = coef * 2 * L * L * Iz_A;
     K_zero[3][3] = coef * L * L;
-    K_zero[4][4] = coef * 12;
-    K_zero[4][5] = -coef * 6 * L;
-    K_zero[5][5] = coef * 4 * L * L;
+    K_zero[4][4] = coef * 12 * Iz_A;
+    K_zero[4][5] = -coef * 6 * L * Iz_A;
+    K_zero[5][5] = coef * 4 * L * L * Iz_A;
 
     //assymetry
     K_zero[0][3] = -coef * L * L;
-    K_zero[4][1] = -coef * 12;
-    K_zero[5][1] = coef * 6 * L;
-    K_zero[2][1] = coef * 6 * L;
-    K_zero[4][2] = -coef * 6 * L;
-    K_zero[5][2] = coef * 2 * L * L;
-    K_zero[5][4] = -coef * 6 * L;
+    K_zero[4][1] = -coef * 12 * Iz_A;
+    K_zero[5][1] = coef * 6 * L * Iz_A;
+    K_zero[2][1] = coef * 6 * L * Iz_A;
+    K_zero[4][2] = -coef * 6 * L * Iz_A;
+    K_zero[5][2] = coef * 2 * L * L * Iz_A;
+    K_zero[5][4] = -coef * 6 * L * Iz_A;
 
     matrix_transpose(T_trans, T);
     matrix_mul(K_e_ref, T_trans, K_zero);
