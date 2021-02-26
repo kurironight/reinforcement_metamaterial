@@ -288,6 +288,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
         }
     }
 
+    //ひずみ角の条件を加えない場合
     int condition_element_num = input_node_num * 2 + frozen_node_num * 3;
 
     // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
@@ -311,6 +312,34 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
         f_array[input_node_num * 2 + i * 3 + 1] = 0.0;
         f_array[input_node_num * 2 + i * 3 + 2] = 0.0;
     }
+
+    /* ひずみ角の条件を加える場合
+    int condition_element_num = input_node_num * 3 + frozen_node_num * 3; //モーメントの条件を加える場合
+
+    // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
+    int *indexes_array = malloc(condition_element_num * sizeof(int));
+    double *f_array = malloc(condition_element_num * sizeof(double));
+    for (int i = 0; i < input_node_num; i++)
+    {
+        indexes_array[i * 2 + 0] = input_nodes[i] * 3 + 0;
+        indexes_array[i * 2 + 1] = input_nodes[i] * 3 + 1;
+        indexes_array[i * 2 + 2] = input_nodes[i] * 3 + 2; //モーメントの条件を加える場合
+
+        f_array[i * 2 + 0] = input_vectors[i][0];
+        f_array[i * 2 + 1] = input_vectors[i][1];
+        f_array[i * 2 + 2] = input_vectors[i][2]; //モーメントの条件を加える場合
+    }
+    for (int i = 0; i < frozen_node_num; i++)
+    {
+        indexes_array[input_node_num * 3 + i * 3 + 0] = frozen_nodes[i] * 3 + 0;
+        indexes_array[input_node_num * 3 + i * 3 + 1] = frozen_nodes[i] * 3 + 1;
+        indexes_array[input_node_num * 3 + i * 3 + 2] = frozen_nodes[i] * 3 + 2;
+
+        f_array[input_node_num * 3 + i * 3 + 0] = 0.0;
+        f_array[input_node_num * 3 + i * 3 + 1] = 0.0;
+        f_array[input_node_num * 3 + i * 3 + 2] = 0.0;
+    }
+    */
 
     //F行列の初期化
     for (i = 0; i < all_element_size; ++i)
