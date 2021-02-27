@@ -11,7 +11,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
 
     Args:
         nodes_pos (np.array): node_num*2.ノードの位置座標を収納
-        edges_indices (np.array): エッジの繋がりを示している．
+        edges_indices (np.array): エッジの繋がりを示している．なお，ノード数が5この時，[[0,1],[2,3]]と4が含まれないなどのようなことはないものとする．
         edges_thickness (np.array): 各エッジの太さを示している．
         input_nodes (list): 変位を入力するノードを指定している
         input_vectors (np.array): 入力する変位を指定している
@@ -33,6 +33,9 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     edges_thickness = edges_thickness.astype(
         np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
     displacement = np.ones((node_num*3,))  # 各節点要素の変位を持つ変数
+
+    assert np.all(np.isin(np.arange(node_num), edges_indices)
+                  ), 'edge_indicesでは触れられていないノードが存在する'
 
     # doubleのポインタのポインタ型を用意
     _DOUBLE_PP = ndpointer(dtype=np.uintp, ndim=1, flags='C')
