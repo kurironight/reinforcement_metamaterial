@@ -416,6 +416,7 @@ def main():
         # reset environment and episode reward
         state = env.reset()
         ep_reward = 0
+        continuous_trigger = 0
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning

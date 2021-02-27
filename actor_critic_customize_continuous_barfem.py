@@ -100,12 +100,12 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "test5"  # 実験名
+test_name = "bar_fem_confirm"  # 実験名
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
-train_num = 50  # 学習回数
+train_num = 500  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
 penalty = 0.001  # 連続状態から不連続状態になった時のペナルティ
 final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
@@ -433,6 +433,7 @@ def main():
                 break
         state = env.reset()
         ep_reward = 0
+        continuous_trigger = 0
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
