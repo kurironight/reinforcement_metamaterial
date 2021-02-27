@@ -7,16 +7,31 @@ libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
 def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes):
+    """バーFEMを行う
+
+    Args:
+        nodes_pos (np.array): node_num*2.ノードの位置座標を収納
+        edges_indices (np.array): エッジの繋がりを示している．
+        edges_thickness (np.array): 各エッジの太さを示している．
+        input_nodes (list): 変位を入力するノードを指定している
+        input_vectors (np.array): 入力する変位を指定している
+        frozen_nodes (list)): 固定しているノードを指定している
+
+    Returns:
+        [np.array]: 各要素の変位を示している．
+    """
     node_num = nodes_pos.shape[0]
     edge_num = edges_indices.shape[0]
     input_node_num = len(input_nodes)
     frozen_node_num = len(frozen_nodes)
     nodes_pos = nodes_pos.astype(
         np.float64)
+    input_vectors = input_vectors.astype(
+        np.float64)
     edges_indices = edges_indices.astype(
         np.int32)  # ここをint32型にしないとコードが正しく作動しない
     edges_thickness = edges_thickness.astype(
-        np.float64)  # ここをint32型にしないとコードが正しく作動しない
+        np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
     displacement = np.ones((node_num*3,))  # 各節点要素の変位を持つ変数
 
     # doubleのポインタのポインタ型を用意
