@@ -12,12 +12,15 @@ class BarFemGym(MetamechGym):
 
     def calculate_simulation(self):
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
-        # edge_indicesでは触れられていないノードが存在しないようにする
+        input_nodes = np.array(self.input_nodes)
+        frozen_nodes = np.array(self.frozen_nodes)
         node_num = nodes_pos.shape[0]
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
         mask = np.isin(np.arange(node_num), edges_indices)
-        if not np.all(mask):
+        if not np.all(mask):  # barfemの為，edge_indicesではnodes_posの内，触れられていないノードが存在しないようにする
+            processed_input_nodes = input_nodes.copy()
+            processed_frozen_nodes = frozen_nodes.copy()
             processed_edges_indices = edges_indices.copy()
             prior_index = np.arange(node_num)[mask]
             processed_nodes_pos = nodes_pos[mask]
@@ -25,11 +28,17 @@ class BarFemGym(MetamechGym):
                 if index != prior_index:
                     processed_edges_indices[edges_indices ==
                                             prior_index] = index
+                    # input_nodesとfrozen_nodes部分のラベルを変更
+                    processed_input_nodes[input_nodes == prior_index] = index
+                    processed_frozen_nodes[frozen_nodes == prior_index] = index
             nodes_pos = processed_nodes_pos
             edges_indices = processed_edges_indices
-
-        displacement = barfem(nodes_pos, edges_indices, edges_thickness, self.input_nodes,
-                              self.input_vectors, self.frozen_nodes)
+            input_nodes = processed_input_nodes
+            frozen_nodes = processed_frozen_nodes
+        input_nodes = input_nodes.tolist()
+        frozen_nodes = frozen_nodes.tolist()
+        displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
+                              self.input_vectors, frozen_nodes)
 
         efficiency = np.dot(self.output_vectors, displacement[[
                             self.output_nodes[0]*3+0, self.output_nodes[0]*3+1]])
