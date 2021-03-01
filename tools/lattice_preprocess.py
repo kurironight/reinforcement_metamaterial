@@ -3,6 +3,10 @@ import numpy as np
 
 def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                              origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness=0.2):
+    """envが処理できるような状態にする．
+    出力されるnode_posの順番は入力ノード，出力ノード，固定ノードの順番，そして，ノード番号はそれぞれ0,1,2...に直される．
+    そして全てのエッジの太さは condition_edge_thicknessとして出力される．
+    """
 
     new_input_nodes = np.arange(len(origin_input_nodes))
     new_output_nodes = np.arange(
