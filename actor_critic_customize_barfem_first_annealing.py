@@ -16,13 +16,13 @@ from tools.plot import plot_loss_history, plot_reward_history, plot_efficiency_h
 from tools.save import load_graph_info
 
 # パラメータ
-test_name = "annealing_test3"  # 実験名
+test_name = "annealing_test50"  # 実験名
 annealing_name = "test"
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
-train_num = 500  # 学習回数
+train_num = 50  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
 penalty = 0.001  # 連続状態から不連続状態になった時のペナルティ
 final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
@@ -337,7 +337,7 @@ def main():
             # take the action
             state, _, done, info = env.step(action)
             if (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
-                reward = -final_penalty
+                reward = np.array([-final_penalty])
             elif env.confirm_graph_is_connected():
                 efficiency = env.calculate_simulation()
                 if continuous_trigger == 1:
@@ -348,9 +348,9 @@ def main():
                 prior_efficiency = efficiency
 
             elif continuous_trigger == 1:
-                reward = -penalty
+                reward = np.array([-penalty])
             else:
-                reward = 0
+                reward = np.array([0])
 
             GCN.rewards.append(reward)
 
