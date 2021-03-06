@@ -20,13 +20,15 @@ class MetamechGym(gym.Env):
 
     # 初期化
     def __init__(self, node_pos, input_nodes, input_vectors, output_nodes,
-                 output_vectors, frozen_nodes, edges_indices, edges_thickness):
+                 output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes):
         super(MetamechGym, self).__init__()
 
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
 
         self.first_node_pos = node_pos.copy()
+        #
+        self.condition_nodes = condition_nodes  # エッジの太さを変更しない条件ノードを指定する．
         self.input_nodes = input_nodes
         self.input_vectors = input_vectors
         self.output_nodes = output_nodes
@@ -111,10 +113,9 @@ class MetamechGym(gym.Env):
         if index.shape != (0,):
             assert index.shape[0] == 1, 'there are two edge_indices which is identical'
             # もし，条件ノード間のエッジを選択した場合，何もしない
-            condition_node_num = self.first_node_pos.shape[0]
             ref_edge_indice = edges_indices[index][0]
 
-            if np.isin([ref_edge_indice[0]], np.arange(condition_node_num))[0] & np.isin([ref_edge_indice[1]], np.arange(condition_node_num))[0]:
+            if np.isin([ref_edge_indice[0]], self.condition_nodes)[0] & np.isin([ref_edge_indice[1]], self.condition_nodes)[0]:
                 self.info['status'] = 1
                 return self.current_obs, 0, False, self.info
             else:

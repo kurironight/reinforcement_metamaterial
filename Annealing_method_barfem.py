@@ -12,9 +12,9 @@ from tools.save import save_graph_info
 # PARAMETER
 initial_temperature = 0.06
 final_temperature = 0.001
-steps = 101  # 試行回数
+steps = 50000  # 試行回数
 EDGE_THICKNESS = 0.2  # エッジの太さ
-test_name = "test"
+test_name = "barfem_50000"
 
 # 学習の推移
 history = {}
@@ -124,7 +124,7 @@ condition_nodes = origin_input_nodes+origin_output_nodes+origin_frozen_nodes
 
 env = BarFemGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
                 barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
-                origin_edges_indices, origin_edges_thickness)
+                origin_edges_indices, origin_edges_thickness, origin_frozen_nodes)
 env.reset()
 # env.render(os.path.join(log_dir, 'render_image/first.png'))
 
@@ -162,7 +162,7 @@ for epoch, temperature in enumerate(tqdm(temperatures)):
 
     env = BarFemGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
                     barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
-                    proposed_edges_indices, proposed_edges_thickness)
+                    proposed_edges_indices, proposed_edges_thickness, origin_frozen_nodes)
     env.reset()
     if env.confirm_graph_is_connected():
         proposed_efficiency = env.calculate_simulation()

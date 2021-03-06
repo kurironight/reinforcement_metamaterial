@@ -4,9 +4,9 @@ import numpy as np
 
 
 class BarFemGym(MetamechGym):
-    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness):
+    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes):
         super(BarFemGym, self).__init__(node_pos, input_nodes, input_vectors,
-                                        output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness)
+                                        output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes)
         assert len(self.output_nodes) == 1, "output_node should be 1 size of list"
         assert self.output_vectors.shape[0] == 1 and self.output_vectors.shape[1] == 2, "output_vector should be [1,2]"
 
@@ -18,7 +18,7 @@ class BarFemGym(MetamechGym):
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
         mask = np.isin(np.arange(node_num), edges_indices)
-        if not np.all(mask):  # barfemの為，edge_indicesではnodes_posの内，触れられていないノードが存在しないようにする
+        if not np.all(mask):  # barfemの為，edge_indicesではnodes_posの内，触れられていないノードが存在しないように処理する
             processed_input_nodes = input_nodes.copy()
             processed_frozen_nodes = frozen_nodes.copy()
             processed_edges_indices = edges_indices.copy()
