@@ -234,18 +234,20 @@ def finish_episode(epoch):
 
         # calculate actor (policy) loss
         if action["end"]:
-            policy_losses.append(-stop_prob.log_prob[0] * advantage)
+            policy_loss = -stop_prob.log_prob[0] * advantage
+            policy_losses.append(policy_loss)
             with open(os.path.join(log_dir, "loss.txt"), mode='a') as f:
-                f.writelines('steps %d, value_loss: %.4f advantage: %.4f stop_prob: %.4f action: end\n' %
-                             (steps, value_loss, advantage, stop_prob.log_prob[0]))
+                f.writelines('steps %d, value_loss: %.4f , policy_loss: %.4f advantage: %.4f stop_prob: %.4f action: end\n' %
+                             (steps, value_loss, policy_loss, advantage, stop_prob.log_prob[0]))
         else:
             log_probs = torch.cat([stop_prob.log_prob,
                                    node1_prob.log_prob, node2_prob.log_prob])
             if advantage <= 0:
-                policy_losses.append(-torch.mean(log_probs) * advantage)
+                policy_loss = -torch.mean(log_probs) * advantage
+                policy_losses.append(policy_loss)
                 with open(os.path.join(log_dir, "loss.txt"), mode='a') as f:
-                    f.writelines('steps %d, value_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f action: adv<0\n' %
-                                 (steps, value_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0]))
+                    f.writelines('steps %d, value_loss: %.4f, policy_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f action: adv<0\n' %
+                                 (steps, value_loss, policy_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0]))
             else:
                 if np.isin(node_num, action["which_node"]):  # 新規ノードが選択されているとき
                     x_y_mean_loss = F.l1_loss(torch.from_numpy(
@@ -261,21 +263,23 @@ def finish_episode(epoch):
                     mean_loss = (x_y_mean_loss*2+edge_thick_mean_loss)/3
                     var_loss = (x_y_var_loss*2+edge_thick_var_loss)/3
 
-                    policy_losses.append(
-                        (-torch.mean(log_probs)+mean_loss+var_loss) * advantage)
+                    policy_loss = (-torch.mean(log_probs) +
+                                   mean_loss+var_loss) * advantage
+                    policy_losses.append(policy_loss)
                     with open(os.path.join(log_dir, "loss.txt"), mode='a') as f:
-                        f.writelines('steps %d, value_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f x_y_mean_loss: %.4f edge_thick_mean_loss: %.4f x_y_var_loss: %.4f edge_thick_var_loss: %.4f action: new_node\n\n\n' %
-                                     (steps, value_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0], x_y_mean_loss, edge_thick_mean_loss, x_y_var_loss, edge_thick_var_loss))
+                        f.writelines('steps %d, value_loss: %.4f, policy_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f x_y_mean_loss: %.4f edge_thick_mean_loss: %.4f x_y_var_loss: %.4f edge_thick_var_loss: %.4f action: new_node\n\n\n' %
+                                     (steps, value_loss, policy_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0], x_y_mean_loss, edge_thick_mean_loss, x_y_var_loss, edge_thick_var_loss))
                 else:
                     edge_thick_mean_loss = F.l1_loss(torch.from_numpy(
                         action["edge_thickness"]).double(), torch.tensor([edge_thick_mean]))
                     edge_thick_var_loss = F.l1_loss(torch.from_numpy(
                         np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), torch.tensor([torch.sqrt(edge_thick_var)]))
-                    policy_losses.append(
-                        (-torch.mean(log_probs)+edge_thick_mean_loss+edge_thick_var_loss) * advantage)
+                    policy_loss = (-torch.mean(log_probs) +
+                                   edge_thick_mean_loss+edge_thick_var_loss) * advantage
+                    policy_losses.append(policy_loss)
                     with open(os.path.join(log_dir, "loss.txt"), mode='a') as f:
-                        f.writelines('steps %d, value_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f edge_thick_mean_loss: %.4f edge_thick_var_loss: %.4f action: exist_node\n' %
-                                     (steps, value_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0], edge_thick_mean_loss, edge_thick_var_loss))
+                        f.writelines('steps %d, value_loss: %.4f, policy_loss: %.4f advantage: %.4f stop_prob: %.4f node1_prob: %.4f node2_prob: %.4f edge_thick_mean_loss: %.4f edge_thick_var_loss: %.4f action: exist_node\n' %
+                                     (steps, value_loss, policy_loss, advantage, stop_prob.log_prob[0], node1_prob.log_prob[0], node2_prob.log_prob[0], edge_thick_mean_loss, edge_thick_var_loss))
 
     # reset gradients
     GCN_optimizer.zero_grad()
