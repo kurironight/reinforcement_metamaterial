@@ -6,7 +6,7 @@ import numpy as np
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
-def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes):
+def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement"):
     """バーFEMを行う
 
     Args:
@@ -14,8 +14,9 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         edges_indices (np.array): エッジの繋がりを示している．なお，ノード数が5この時，[[0,1],[2,3]]と4が含まれないなどのようなことはないものとする．
         edges_thickness (np.array): 各エッジの太さを示している．
         input_nodes (list): 変位を入力するノードを指定している
-        input_vectors (np.array): 入力する変位を指定している
+        input_vectors (np.array): 入力する変位(or 力)を指定している
         frozen_nodes (list)): 固定しているノードを指定している
+        mode(str): 強制変位か外力の条件の時の有限要素法を扱う．強制変位の時は"displacement",外力の時は"force"とする．
 
     Returns:
         [np.array]: 各要素の変位を示している．
@@ -34,6 +35,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
     displacement = np.ones((node_num*3,))  # 各節点要素の変位を持つ変数
 
+    assert input_vectors.shape[1] == 2, '求められている強制変位もしくは外力はx,y方向のみである'
+
     assert np.all(np.isin(np.arange(node_num), edges_indices)
                   ), 'edge_indicesでは触れられていないノードが存在する'
 
@@ -42,8 +45,11 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     # 関数の引数の型を指定(ctypes)　
     libc.bar_fem.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, ct.c_int32, ct.c_int32, ct.c_int32,
                              ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP]
+    libc.bar_fem_force.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, ct.c_int32, ct.c_int32, ct.c_int32,
+                                   ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP]
     # 関数が返す値の型を指定(今回は返り値なし)
     libc.bar_fem.restype = None
+    libc.bar_fem_force.restype = None
 
     # 各配列のアドレスを求めている
     tp = np.uintp
@@ -67,8 +73,11 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
 
     inp = (ctypes.c_int*len(input_nodes))(*input_nodes)
     frz = (ctypes.c_int*len(frozen_nodes))(*frozen_nodes)
-
-    libc.bar_fem(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
-                 frz, dspp)
+    if mode == 'displacement':
+        libc.bar_fem(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
+                     frz, dspp)
+    elif mode == 'force':
+        libc.bar_fem_force(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
+                           frz, dspp)
 
     return displacement
