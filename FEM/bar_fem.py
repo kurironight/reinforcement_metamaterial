@@ -39,6 +39,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
 
     assert np.all(np.isin(np.arange(node_num), edges_indices)
                   ), 'edge_indicesでは触れられていないノードが存在する'
+    assert mode == 'displacement' or mode == 'force', 'modeは"displacement"か"force"'
 
     # doubleのポインタのポインタ型を用意
     _DOUBLE_PP = ndpointer(dtype=np.uintp, ndim=1, flags='C')
