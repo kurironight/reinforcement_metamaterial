@@ -7,6 +7,7 @@ import torch
 from .DDPG import ActorNetwork, CriticNetwork, ReplayBuffer, DDPG
 from tools.plot import plot_efficiency_history
 import os
+from .actor_critic import select_action, Edgethick_Actor, Edgethick_Critic, finish_episode
 
 
 def f(x):
@@ -68,7 +69,7 @@ def ddpg():
     weight_decay = 1e-2
 
     test_name = "ddpg_500_v2"  # 実験名
-    log_dir = "confirm/step1/results/{}".format(test_name)
+    log_dir = "confirm/step1/ddpg_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir)
 
@@ -143,6 +144,69 @@ def ddpg():
 
             if done:
                 break
+
+    env.close()
+    plot_efficiency_history(history, os.path.join(
+        log_dir, 'learning_effi_curve.png'))
+
+
+def actor_critic():
+    """Actor-Criticを行う．学習はDL（GCN以外）で
+    Actorの指定できる幅は0.1-1となっている"""
+
+    max_episodes = 5000
+    test_name = "5000"  # 実験名
+
+    history = {}
+    history['epoch'] = []
+    history['result_efficiency'] = []
+
+    log_dir = "confirm/step1/ac_results/{}".format(test_name)
+    assert not os.path.exists(log_dir), "already folder exists"
+    os.makedirs(log_dir)
+
+    node_pos, input_nodes, input_vectors,\
+        output_nodes, output_vectors, frozen_nodes,\
+        edges_indices, edges_thickness, frozen_nodes = easy_dev()
+    env = Step1Gym(node_pos, input_nodes, input_vectors,
+                   output_nodes, output_vectors, frozen_nodes,
+                   edges_indices, edges_thickness, frozen_nodes)
+    env.reset()
+
+    max_steps = 1
+    lr_actor = 1e-4
+    lr_critic = 1e-3
+    weight_decay = 1e-2
+    gamma = 0.99
+
+    device = torch.device('cpu')
+
+    actorNet = Edgethick_Actor().to(device)
+    criticNet = Edgethick_Critic().to(device)
+    optimizer_actor = optim.Adam(actorNet.parameters(), lr=lr_actor)
+    optimizer_critic = optim.Adam(
+        criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
+
+    for episode in range(max_episodes):
+        observation = env.reset()
+        observation = np.array([0, 1])
+
+        for step in range(max_steps):
+            action = select_action(
+                observation, actorNet, criticNet, device)
+
+            next_observation, _, done, _ = env.step(action)
+            reward = env.calculate_simulation(mode='force')
+            criticNet.rewards.append(reward)
+
+        loss = finish_episode(criticNet, actorNet, optimizer_critic,
+                              optimizer_actor, gamma)
+
+        history['epoch'].append(episode+1)
+        history['result_efficiency'].append(reward)
+
+        if episode % 10 == 0:
+            print("episode:{} total reward:{}".format(episode, reward))
 
     env.close()
     plot_efficiency_history(history, os.path.join(
