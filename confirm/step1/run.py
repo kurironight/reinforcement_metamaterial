@@ -8,6 +8,7 @@ from .DDPG import ActorNetwork, CriticNetwork, ReplayBuffer, DDPG
 from tools.plot import plot_efficiency_history
 import os
 from .actor_critic import select_action, Edgethick_Actor, Edgethick_Critic, finish_episode
+import pickle
 
 
 def f(x):
@@ -219,7 +220,7 @@ def actor_critic_mean():
     test_num = 5
 
     max_episodes = 5000
-    test_name = "5times"  # 実験名
+    test_name = "5timess_with_std"  # 実験名
 
     log_dir = "confirm/step1/ac_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
@@ -271,7 +272,7 @@ def actor_critic_mean():
             history["{}".format(i)]['epoch'].append(episode+1)
             history["{}".format(i)]['result_efficiency'].append(reward)
 
-            if episode % 10 == 0:
+            if episode % 1000 == 0:
                 print("episode:{} total reward:{}".format(episode, reward))
 
         env.close()
@@ -280,11 +281,17 @@ def actor_critic_mean():
 
     mean = np.stack([history["{}".format(i)]['result_efficiency']
                      for i in range(test_num)])
+    std = np.std(mean[:, -1])
+    print('最終結果の標準偏差：', std)
     mean = np.mean(mean, axis=0)
 
     meanhistory = {}
     meanhistory['epoch'] = history['0']['epoch']
     meanhistory['result_efficiency'] = mean
+
+    # 学習履歴を保存
+    with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
+        pickle.dump(history, f)
 
     plot_efficiency_history(meanhistory, os.path.join(
         log_dir, 'mean_learning_effi_curve.png'))
