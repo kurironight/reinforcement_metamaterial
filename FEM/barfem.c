@@ -401,3 +401,152 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
     free(indexes_array);
     free(f_array);
 }
+
+void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement)
+{
+    int i, j, k;
+    int node1, node2;
+    int free_D = 3;
+    int all_element_size = node_num * free_D;
+    double K[all_element_size][all_element_size];
+    double K_e[6][6];
+    double F[all_element_size];
+    double node[2][2];
+
+    // K行列の初期化
+    for (i = 0; i < all_element_size; ++i)
+    {
+        for (j = 0; j < all_element_size; ++j)
+        {
+            K[i][j] = 0;
+        }
+    }
+
+    for (i = 0; i < edge_num; ++i)
+    {
+        node1 = edges_indices[i][0];
+        node2 = edges_indices[i][1];
+        node[0][0] = nodes_pos[node1][0];
+        node[0][1] = nodes_pos[node1][1];
+        node[1][0] = nodes_pos[node2][0];
+        node[1][1] = nodes_pos[node2][1];
+        get_K_element_matrix(K_e, node, edges_thickness[i][0]);
+
+        // K行列に代入
+        // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node1 * 3 + j][node1 * 3 + k] += K_e[j][k];
+            }
+        }
+        // K12をK[node1*3:(node1+1)*3,node2*3:(node2+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node1 * 3 + j][node2 * 3 + k] += K_e[j][k + 3];
+            }
+        }
+        // K21をK[node2*3:(node2+1)*3,node1*3:(node1+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node2 * 3 + j][node1 * 3 + k] += K_e[j + 3][k];
+            }
+        }
+        // K22をK[node2*3:(node2+1)*3,node2*3:(node2+1)*3]に代入
+        for (j = 0; j < 3; ++j)
+        {
+            for (k = 0; k < 3; ++k)
+            {
+                K[node2 * 3 + j][node2 * 3 + k] += K_e[j + 3][k + 3];
+            }
+        }
+    }
+
+    //ひずみ角の条件を加えない場合
+    int condition_element_num = frozen_node_num * 3;
+
+    // 各条件の要素（num_node*3中）と，その要素の強制変位や固定変位を収納
+    int *indexes_array = malloc(condition_element_num * sizeof(int));
+    double *f_array = malloc(condition_element_num * sizeof(double));
+    for (int i = 0; i < frozen_node_num; i++)
+    {
+        indexes_array[i * 3 + 0] = frozen_nodes[i] * 3 + 0;
+        indexes_array[i * 3 + 1] = frozen_nodes[i] * 3 + 1;
+        indexes_array[i * 3 + 2] = frozen_nodes[i] * 3 + 2;
+
+        f_array[i * 3 + 0] = 0.0;
+        f_array[i * 3 + 1] = 0.0;
+        f_array[i * 3 + 2] = 0.0;
+    }
+
+    //F行列の初期化
+    for (i = 0; i < all_element_size; ++i)
+    {
+        F[i] = 0;
+    }
+    // Fの外力の部分を設定
+    for (int i = 0; i < input_node_num; i++)
+    {
+        F[input_nodes[i] * 3 + 0] = input_forces[i][0];
+        F[input_nodes[i] * 3 + 1] = input_forces[i][1];
+    }
+
+    //F,K行列に条件を適用
+    for (i = 0; i < condition_element_num; ++i)
+    {
+        int target_index = indexes_array[i];
+        //makinf F matrix
+        for (j = 0; j < all_element_size; ++j)
+        {
+            F[j] -= K[j][target_index] * f_array[i];
+        }
+        F[target_index] = f_array[i];
+
+        //makinf K matrix
+        for (j = 0; j < all_element_size; ++j)
+        {
+            K[target_index][j] = 0;
+            K[j][target_index] = 0;
+        }
+        K[target_index][target_index] = 1;
+    }
+
+    // CGをかける為の形にする
+    double **A = malloc(all_element_size * sizeof(double *));
+    for (int i = 0; i < all_element_size; i++)
+    {
+        A[i] = malloc(all_element_size * sizeof(double));
+        for (int j = 0; j < all_element_size; j++)
+        {
+            A[i][j] = K[i][j];
+        }
+    }
+    // xの初期値は適当
+    double x[all_element_size];
+    for (i = 0; i < all_element_size; ++i)
+    {
+        x[i] = 0;
+    }
+
+    // CG法でAx=bを解く
+    cg_method(A, x, F, all_element_size);
+
+    // メモリの解放
+    for (int i = 0; i < all_element_size; i++)
+    {
+        free(A[i]); //各行のメモリを解放
+    }
+
+    for (i = 0; i < all_element_size; ++i)
+    {
+        displacement[i][0] = x[i];
+    }
+    free(A);
+    free(indexes_array);
+    free(f_array);
+}

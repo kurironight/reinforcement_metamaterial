@@ -10,7 +10,7 @@ class BarFemGym(MetamechGym):
         assert len(self.output_nodes) == 1, "output_node should be 1 size of list"
         assert self.output_vectors.shape[0] == 1 and self.output_vectors.shape[1] == 2, "output_vector should be [1,2]"
 
-    def calculate_simulation(self):
+    def calculate_simulation(self, mode='displacement'):
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
         input_nodes = np.array(self.input_nodes)
         frozen_nodes = np.array(self.frozen_nodes)
@@ -38,7 +38,7 @@ class BarFemGym(MetamechGym):
         input_nodes = input_nodes.tolist()
         frozen_nodes = frozen_nodes.tolist()
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
-                              self.input_vectors, frozen_nodes)
+                              self.input_vectors, frozen_nodes, mode)
 
         efficiency = np.dot(self.output_vectors, displacement[[
                             self.output_nodes[0]*3+0, self.output_nodes[0]*3+1]])
