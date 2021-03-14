@@ -17,17 +17,20 @@ Saved_Action = namedtuple('SavedAction', ['action', 'value'])
 
 
 class Edgethick_Actor(ActorNetwork):
-    def __init__(self, emb_size=300, hidden2_size=300):
-        super(Edgethick_Actor, self).__init__(num_state=emb_size, num_action=2,
+    """入力がstate.
+    """
+
+    def __init__(self, hidden2_size=300):
+        super(Edgethick_Actor, self).__init__(num_state=2, num_action=2,
                                               hidden1_size=400, hidden2_size=hidden2_size, init_w=3e-3)
         self.fc3 = nn.Linear(hidden2_size, 1)
         self.fc4 = nn.Linear(hidden2_size, 1)
         self.saved_actions = []
 
-    def forward(self, h):
-        h = F.relu(self.fc1(h))
+    def forward(self, x):
+        h = F.relu(self.fc1(x))
         h = F.relu(self.fc2(h))
-        mean = torch.sigmoid(self.fc3(h))  # var to mean todekaeru
+        mean = 0.1+0.9*torch.sigmoid(self.fc3(h))  # var to mean todekaeru
         std = 0.1*torch.sigmoid(self.fc4(h))
         y = torch.cat([mean, std], dim=1)
         print(y)
@@ -53,7 +56,10 @@ def select_action(state, actorNet, criticNet, device):
     state_tensor = torch.tensor(
         state, dtype=torch.float, device=device).view(-1, 2)
     emb_graph, state_value = criticNet(state_tensor)
-    edge_thickness = actorNet(emb_graph)
+    #edge_thickness = actorNet(emb_graph)
+    # edge_thickness = actorNet(emb_graph.clone().detach())  # 共有をなくし，学習を安定化させた
+    edge_thickness = actorNet(state_tensor)  # ActorとCriticの学習パラメータを独立化した
+
     edge_thickness_tdist = tdist.Normal(
         edge_thickness[0][0].item(), edge_thickness[0][1].item())
     edge_thickness_action = edge_thickness_tdist.sample()
@@ -93,7 +99,7 @@ def finish_episode(Critic, Edge_thickness, Critic_opt, Edge_thick_opt, gamma):
 
         advantage = R - value.item()
         node_num = 2
-        print("advantage:", advantage)
+        #print("advantage:", advantage)
 
         # calculate actor (policy) loss
         if action["end"]:
