@@ -33,7 +33,6 @@ class Edgethick_Actor(ActorNetwork):
         mean = 0.1+0.9*torch.sigmoid(self.fc3(h))  # var to mean todekaeru
         std = 0.1*torch.sigmoid(self.fc4(h))
         y = torch.cat([mean, std], dim=1)
-        print(y)
         return y
 
 

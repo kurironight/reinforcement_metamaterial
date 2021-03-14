@@ -154,8 +154,8 @@ def actor_critic():
     """Actor-Criticを行う．学習はDL（GCN以外）で
     Actorの指定できる幅は0.1-1となっている"""
 
-    max_episodes = 5000
-    test_name = "5000"  # 実験名
+    max_episodes = 500
+    test_name = "500_moto"  # 実験名
 
     history = {}
     history['epoch'] = []
@@ -163,7 +163,7 @@ def actor_critic():
 
     log_dir = "confirm/step1/ac_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
-    os.makedirs(log_dir)
+    os.makedirs(log_dir, exist_ok=True)
 
     node_pos, input_nodes, input_vectors,\
         output_nodes, output_vectors, frozen_nodes,\
@@ -211,3 +211,80 @@ def actor_critic():
     env.close()
     plot_efficiency_history(history, os.path.join(
         log_dir, 'learning_effi_curve.png'))
+
+
+def actor_critic_mean():
+    """Actor-Criticの５回実験したときの平均グラフを作成する関数"""
+
+    test_num = 5
+
+    max_episodes = 5000
+    test_name = "5times"  # 実験名
+
+    log_dir = "confirm/step1/ac_results/{}".format(test_name)
+    assert not os.path.exists(log_dir), "already folder exists"
+    os.makedirs(log_dir, exist_ok=True)
+
+    history = {}
+    for i in range(test_num):
+        history["{}".format(i)] = {}
+        history["{}".format(i)]['epoch'] = []
+        history["{}".format(i)]['result_efficiency'] = []
+
+        node_pos, input_nodes, input_vectors,\
+            output_nodes, output_vectors, frozen_nodes,\
+            edges_indices, edges_thickness, frozen_nodes = easy_dev()
+        env = Step1Gym(node_pos, input_nodes, input_vectors,
+                       output_nodes, output_vectors, frozen_nodes,
+                       edges_indices, edges_thickness, frozen_nodes)
+        env.reset()
+
+        max_steps = 1
+        lr_actor = 1e-4
+        lr_critic = 1e-3
+        weight_decay = 1e-2
+        gamma = 0.99
+
+        device = torch.device('cpu')
+
+        actorNet = Edgethick_Actor().to(device)
+        criticNet = Edgethick_Critic().to(device)
+        optimizer_actor = optim.Adam(actorNet.parameters(), lr=lr_actor)
+        optimizer_critic = optim.Adam(
+            criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
+
+        for episode in range(max_episodes):
+            observation = env.reset()
+            observation = np.array([0, 1])
+
+            for step in range(max_steps):
+                action = select_action(
+                    observation, actorNet, criticNet, device)
+
+                next_observation, _, done, _ = env.step(action)
+                reward = env.calculate_simulation(mode='force')
+                criticNet.rewards.append(reward)
+
+            loss = finish_episode(criticNet, actorNet, optimizer_critic,
+                                  optimizer_actor, gamma)
+
+            history["{}".format(i)]['epoch'].append(episode+1)
+            history["{}".format(i)]['result_efficiency'].append(reward)
+
+            if episode % 10 == 0:
+                print("episode:{} total reward:{}".format(episode, reward))
+
+        env.close()
+        plot_efficiency_history(history["{}".format(i)], os.path.join(
+            log_dir, 'learning_effi_curve{}.png'.format(i)))
+
+    mean = np.stack([history["{}".format(i)]['result_efficiency']
+                     for i in range(test_num)])
+    mean = np.mean(mean, axis=0)
+
+    meanhistory = {}
+    meanhistory['epoch'] = history['0']['epoch']
+    meanhistory['result_efficiency'] = mean
+
+    plot_efficiency_history(meanhistory, os.path.join(
+        log_dir, 'mean_learning_effi_curve.png'))
