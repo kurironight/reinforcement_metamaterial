@@ -42,6 +42,39 @@ class ActorNetwork(nn.Module):
         return y
 
 
+class ActorNetwork_GCN(nn.Module):
+    def __init__(self, node_in_features, edge_in_features, node_out_features,
+                 edge_out_features):
+        super(ActorNetwork_GCN, self).__init__()
+        self.GCN1 = CensNet(node_in_features, edge_in_features, node_out_features,
+                            edge_out_features)
+        self.GCN2 = CensNet(node_out_features, edge_out_features,
+                            node_out_features, edge_out_features)
+        self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
+        self.predict_v2 = torch.nn.Linear(node_out_features, 1)
+
+        self.saved_actions = []
+        self.rewards = []
+
+    def forward(self, node, edge, node_adj, edge_adj, D_v, D_e, T, remove_index=False):
+        """
+        forward of both actor and critic
+        """
+        node, edge = self.GCN1(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        # node, edge = adopt_batch_norm(node, edge, self.b1, self.b2)
+        node, edge = self.GCN2(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        # node, edge = adopt_batch_norm(node, edge, self.b3, self.b4)
+        node = F.relu(self.predict_v1(node))  # 1*node_num*node_out_features
+        node = self.predict_v2(node)  # 1*node_num
+        node = node.reshape((-1, node.size(1)))
+        if remove_index is not False:
+            node = torch.cat(
+                [node[:, 0:remove_index], node[:, remove_index+1:]], 1)
+        node = F.softmax(node, dim=-1)
+
+        return node
+
+
 class ActorNetwork2(nn.Module):
     def __init__(self, hidden1_size=400, hidden2_size=300, init_w=3e-3):
         super(ActorNetwork2, self).__init__()
@@ -218,6 +251,49 @@ def select_action_critic_gcn(env, node1Net, node2Net, criticNet, device):
     return action
 
 
+def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, device):
+    nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
+    node, edge, node_adj, edge_adj, D_v, D_e, T = make_torch_type_for_GCN(
+        nodes_pos, edges_indices, edges_thickness, node_adj)
+
+    state_tensor = torch.tensor(
+        nodes_pos, dtype=torch.float, device=device).view(1, 4, 2)
+    state_value = criticNet(node, edge, node_adj,
+                            edge_adj, D_v, D_e, T)
+    node1_prob = node1Net(node, edge, node_adj,
+                          edge_adj, D_v, D_e, T)
+    node1_categ = Categorical(node1_prob)
+    node1 = node1_categ.sample()
+    label = torch.zeros(1, 4, 1).double()
+    label[:, node1, :] = 1
+
+    node_labeled = torch.cat([node, label], 2)
+    node2_prob = node2Net(node_labeled, edge, node_adj,
+                          edge_adj, D_v, D_e, T, remove_index=node1)
+    node2_categ = Categorical(node2_prob)
+    node2_temp = node2_categ.sample()
+
+    if node2_temp >= node1:
+        node2 = node2_temp+1  # node1分の調整
+    else:
+        node2 = node2_temp
+
+    action = {}
+    action['which_node'] = np.array([node1.item(), node2.item()])
+    action['end'] = 0
+    action['edge_thickness'] = np.array([1])
+    action['new_node'] = np.array([[0, 2]])
+
+    # save to action buffer
+    criticNet.saved_actions.append(Saved_Action(action, state_value))
+    node1Net.saved_actions.append(Saved_prob_Action(
+        node1_categ.log_prob(node1)))
+    node2Net.saved_actions.append(Saved_prob_Action(
+        node2_categ.log_prob(node2_temp)))
+
+    return action
+
+
 def finish_episode(Critic, node1Net, node2Net, Critic_opt, Node1_opt, Node2_opt, gamma):
     R = 0
     GCN_saved_actions = Critic.saved_actions
@@ -238,7 +314,7 @@ def finish_episode(Critic, node1Net, node2Net, Critic_opt, Node1_opt, Node2_opt,
     for (action, value),  node1_prob, node2_prob,   R in zip(GCN_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
 
         advantage = R - value.item()
-        advantage = advantage.to(torch.float)  # なぜかfloatにしないとエラーを吐いた．
+        # advantage = advantage.to(torch.float)  # なぜかfloatにしないとエラーを吐いた．
         # print("advantage:", advantage)
 
         # calculate actor (policy) loss
