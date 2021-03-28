@@ -144,7 +144,7 @@ def make_torch_type_for_GCN(nodes_pos, edges_indices, edges_thickness, node_adj)
     return node, edge, node_adj, edge_adj, D_v, D_e, T
 
 
-def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNet, device):
+def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNet, device, log_dir=None):
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
     node, edge, node_adj, edge_adj, D_v, D_e, T = make_torch_type_for_GCN(
         nodes_pos, edges_indices, edges_thickness, node_adj)
@@ -189,10 +189,21 @@ def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNe
     edgethickNet.saved_actions.append(Saved_mean_std_Action(
         edge_thickness[0][0], edge_thickness[0][1]))
 
+    if log_dir != None:
+        # lossの確認事項
+        with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+            print('node1_prob:', node1_prob, file=f)
+            print('node1:', node1.item(), file=f)
+            print('node2_prob:', node2_prob, file=f)
+            print('node2:', node2.item(), file=f)
+            print('edge_thick_mean:', edge_thickness[0][0].item(), file=f)
+            print('edge_thick_std:', edge_thickness[0][1].item(), file=f)
+            print('edge_thickness:', edge_thickness_action.item(), file=f)
+
     return action
 
 
-def finish_episode(Critic, node1Net, node2Net, edgethickNet, Critic_opt, Node1_opt, Node2_opt, Edge_thick_opt, gamma):
+def finish_episode(Critic, node1Net, node2Net, edgethickNet, Critic_opt, Node1_opt, Node2_opt, Edge_thick_opt, gamma, log_dir=None):
     R = 0
     GCN_saved_actions = Critic.saved_actions
     node1Net_saved_actions = node1Net.saved_actions
@@ -213,8 +224,6 @@ def finish_episode(Critic, node1Net, node2Net, edgethickNet, Critic_opt, Node1_o
     for (action, value), (edge_thick_mean, edge_thick_std), node1_prob, node2_prob,   R in zip(GCN_saved_actions, Edge_thickness_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
 
         advantage = R - value.item()
-        # advantage = advantage.to(torch.float)  # なぜかfloatにしないとエラーを吐いた．
-        # print("advantage:", advantage)
 
         # calculate actor (policy) loss
         if action["end"]:
@@ -232,6 +241,9 @@ def finish_episode(Critic, node1Net, node2Net, edgethickNet, Critic_opt, Node1_o
                     np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), edge_thick_std.reshape((1)).double())
                 policy_losses.append(
                     (edge_thick_mean_loss+edge_thick_var_loss) * advantage)
+            else:
+                edge_thick_mean_loss = torch.zeros(1)
+                edge_thick_var_loss = torch.zeros(1)
 
         # calculate critic (value) loss using L1 loss
         value_losses.append(
@@ -266,5 +278,14 @@ def finish_episode(Critic, node1Net, node2Net, edgethickNet, Critic_opt, Node1_o
     del node1Net.saved_actions[:]
     del node2Net.saved_actions[:]
     del edgethickNet.saved_actions[:]
+
+    if log_dir != None:
+        # lossの確認事項
+        with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+            f.writelines('reward: %.4f\n value_loss: %.4f policy_loss: %.4f \n' %
+                         (R, value_losses[0].item(), loss.item()-value_losses[0].item()))
+        with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+            f.writelines('advantage: %.4f log_probs: %.4f edge_thick_mean_loss: %.4f edge_thick_var_loss: %.4f \n' %
+                         (advantage, -torch.mean(log_probs).item(), edge_thick_mean_loss.item(), edge_thick_var_loss.item()))
 
     return loss.item()
