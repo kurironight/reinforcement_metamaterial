@@ -36,19 +36,24 @@ def confirm_max_status():
     print("最小は", x, max)
 
 
-def actor_gcn_critic_gcn():
+def actor_gcn_critic_gcn(log_file=None):
     """Actor-Criticを行う．Actor,CriticはGCN
     Actorの指定できるものは，ノード1とノード2であり，一つのエッジのみを選択できる．"""
 
     max_episodes = 5000
-    test_name = "5000"  # 実験名
+    test_name = "3"  # 実験名
 
     history = {}
     history['epoch'] = []
     history['result_efficiency'] = []
 
     log_dir = "confirm/step3/a_gcn_c_gcn_results/{}".format(test_name)
+
     #assert not os.path.exists(log_dir), "already folder exists"
+    if log_file is not None:
+        log_file = os.path.join(log_dir, log_file)
+    else:
+        log_file = None
     os.makedirs(log_dir, exist_ok=True)
 
     node_pos, input_nodes, input_vectors,\
@@ -78,18 +83,21 @@ def actor_gcn_critic_gcn():
         criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
 
     for episode in range(max_episodes):
+        if log_file is not None:
+            with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+                print('\nepoch:', episode, file=f)
         env.reset()
         nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
         for step in range(max_steps):
             action = select_action_gcn_critic_gcn(
-                env, actorNet, actorNet2, criticNet, edgethickNet, device)
+                env, actorNet, actorNet2, criticNet, edgethickNet, device, log_dir=log_file)
 
             next_nodes_pos, _, done, _ = env.step(action)
             reward = env.calculate_simulation(mode='force')
             criticNet.rewards.append(reward)
 
         loss = finish_episode(criticNet, actorNet, actorNet2, edgethickNet, optimizer_critic,
-                              optimizer_actor, optimizer_actor2, optimizer_edgethick, gamma)
+                              optimizer_actor, optimizer_actor2, optimizer_edgethick, gamma, log_dir=log_file)
 
         history['epoch'].append(episode+1)
         history['result_efficiency'].append(reward)
