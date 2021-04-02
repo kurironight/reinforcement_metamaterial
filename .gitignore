@@ -154,3 +154,4 @@ try.py
 *.pkl
 results/
 prior_thesis_results/
+*.txt
