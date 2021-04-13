@@ -42,22 +42,22 @@ class MetamechGym(gym.Env):
 
         # 行動空間と状態空間の定義
         self.action_space = gym.spaces.Dict({
-            'new_node':  gym.spaces.Box(low=0, high=1.0, shape=(1, 2),
-                                        dtype=np.float32),
+            'new_node': gym.spaces.Box(low=0, high=1.0, shape=(1, 2),
+                                       dtype=np.float32),
             'edge_thickness': gym.spaces.Box(low=np.array([-1]), high=np.array([1.0]), dtype=np.float32),
-            'which_node': gym.spaces.MultiDiscrete([self.max_node-1,
+            'which_node': gym.spaces.MultiDiscrete([self.max_node - 1,
                                                     self.max_node]),
             'end': gym.spaces.Discrete(2),
         })
 
         self.observation_space = gym.spaces.Dict({
             # -1のところは，意味のないノードの情報
-            'nodes':  gym.spaces.Box(low=-1, high=1.0, shape=(self.max_node, 2), dtype=np.float32),
+            'nodes': gym.spaces.Box(low=-1, high=1.0, shape=(self.max_node, 2), dtype=np.float32),
             'edges': gym.spaces.Dict({
                 'adj': gym.spaces.MultiBinary([self.max_node, self.max_node]),
                 # -1のところは，意味の無いエッジの情報
                 'thickness': gym.spaces.Box(low=-1, high=1.0,
-                                            shape=(self.max_node*self.max_node, 1), dtype=np.float32)
+                                            shape=(self.max_node * self.max_node, 1), dtype=np.float32)
             })
         })
 
@@ -85,7 +85,7 @@ class MetamechGym(gym.Env):
 
         action['which_node'][0] = np.random.choice(np.arange(node_num))
         action['which_node'][1] = np.random.choice(
-            np.delete(np.arange(node_num+1), action['which_node'][0]))
+            np.delete(np.arange(node_num + 1), action['which_node'][0]))
 
         return action
 
@@ -178,7 +178,7 @@ class MetamechGym(gym.Env):
         lattice = Lattice(
             nodes_positions=nodes_pos,
             edges_indices=edges_indices,
-            edges_thickness=MAX_EDGE_THICKNESS*edges_thickness,
+            edges_thickness=MAX_EDGE_THICKNESS * edges_thickness,
             linear_stiffness=LINEAR_STIFFNESS,
             angular_stiffness=ANGULAR_STIFFNESS
         )
@@ -243,13 +243,13 @@ class MetamechGym(gym.Env):
 
     def _renew_current_obs(self, node_pos, edges_indices, edges_thickness):
         self.current_obs['nodes'] = np.pad(
-            node_pos, ((0, self.max_node-node_pos.shape[0]), (0, 0)), constant_values=-1)
+            node_pos, ((0, self.max_node - node_pos.shape[0]), (0, 0)), constant_values=-1)
         adj = convert_edge_indices_to_adj(
             edges_indices, size=self.max_node)
         self.current_obs['edges'] = {
             'adj': adj,
             'thickness': np.pad(
-                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
+                edges_thickness, (0, self.max_node * self.max_node - edges_thickness.shape[0]), constant_values=-1)}
         self.info['edges'] = {
             'indices': edges_indices,
         }

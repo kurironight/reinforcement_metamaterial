@@ -41,5 +41,5 @@ class BarFemGym(MetamechGym):
                               self.input_vectors, frozen_nodes, mode)
 
         efficiency = np.dot(self.output_vectors, displacement[[
-                            self.output_nodes[0]*3+0, self.output_nodes[0]*3+1]])
+                            self.output_nodes[0] * 3 + 0, self.output_nodes[0] * 3 + 1]])
         return efficiency
