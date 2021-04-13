@@ -1,6 +1,9 @@
-from .gym_metamech import MetamechGym, MAX_EDGE_THICKNESS
+from .gym_metamech import MetamechGym
 from FEM.bar_fem import barfem
 import numpy as np
+import os
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class BarFemGym(MetamechGym):
@@ -41,5 +44,30 @@ class BarFemGym(MetamechGym):
                               self.input_vectors, frozen_nodes, mode)
 
         efficiency = np.dot(self.output_vectors, displacement[[
-                            self.output_nodes[0]*3+0, self.output_nodes[0]*3+1]])
+                            self.output_nodes[0] * 3 + 0, self.output_nodes[0] * 3 + 1]])
         return efficiency
+
+    # 環境の描画
+    def render(self, save_path="image/image.png", display_number=False):
+        """グラフを図示
+
+        Args:
+            save_path (str, optional): 図を保存するパス. Defaults to "image/image.png".
+            display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
+        """
+        plt.clf()  # Matplotlib内の図全体をクリアする
+        dir_name = os.path.dirname(save_path)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+        pos = {
+            n: (position[0], position[1])
+            for n, position in enumerate(nodes_pos)
+        }
+        nx.draw(G, pos, with_labels=display_number, width=edges_thickness * 20)
+        plt.savefig(save_path)
+        plt.close()
