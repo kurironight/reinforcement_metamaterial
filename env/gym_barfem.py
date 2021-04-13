@@ -48,7 +48,13 @@ class BarFemGym(MetamechGym):
         return efficiency
 
     # 環境の描画
-    def render(self, save_path="image/image.png"):
+    def render(self, save_path="image/image.png", display_number=False):
+        """グラフを図示
+
+        Args:
+            save_path (str, optional): 図を保存するパス. Defaults to "image/image.png".
+            display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
+        """
         plt.clf()  # Matplotlib内の図全体をクリアする
         dir_name = os.path.dirname(save_path)
         if not os.path.exists(dir_name):
@@ -62,6 +68,6 @@ class BarFemGym(MetamechGym):
             n: (position[0], position[1])
             for n, position in enumerate(nodes_pos)
         }
-        nx.draw(G, pos, with_labels=False, width=edges_thickness * 20)
+        nx.draw(G, pos, with_labels=display_number, width=edges_thickness * 20)
         plt.savefig(save_path)
         plt.close()
