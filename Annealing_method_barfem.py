@@ -12,9 +12,10 @@ from tools.save import save_graph_info
 # PARAMETER
 initial_temperature = 0.06
 final_temperature = 0.001
-steps = 50000  # 試行回数
+steps = 120  # 試行回数
 EDGE_THICKNESS = 0.2  # エッジの太さ
-test_name = "barfem_50000"
+test_name = "test"
+gif = True  # Trueならば画像を全部保存する．
 
 # 学習の推移
 history = {}
@@ -32,7 +33,7 @@ assert steps > 100, 'steps must be bigger than 100'
 temperatures = np.linspace(
     initial_temperature, final_temperature, num=100)
 temperatures = list(np.concatenate(
-    [temperatures, np.ones(steps-100)*final_temperature]))
+    [temperatures, np.ones(steps - 100) * final_temperature]))
 
 
 # 初期のノードの状態を抽出
@@ -60,14 +61,14 @@ origin_nodes_positions = np.array([
     [6., 8], [6.5, 6.9282], [7., 8], [7.5, 6.9282],
     [8., 8]])
 
-origin_nodes_positions = origin_nodes_positions/8
+origin_nodes_positions = origin_nodes_positions / 8
 
 origin_edges_indices = np.array([
-    [0,  1], [0,  2], [0, 18], [1,  2], [1,  3], [2, 18],
-    [2,  3], [2,  4], [2, 20], [3,  5], [3,  4], [4,  5],
-    [4, 22], [4, 20], [4,  6], [5,  7], [5,  6], [6, 22],
-    [6,  7], [6, 24], [6,  8], [7,  9], [7,  8], [8, 10],
-    [8, 24], [8,  9], [8, 26], [9, 10], [9, 11], [10, 26],
+    [0, 1], [0, 2], [0, 18], [1, 2], [1, 3], [2, 18],
+    [2, 3], [2, 4], [2, 20], [3, 5], [3, 4], [4, 5],
+    [4, 22], [4, 20], [4, 6], [5, 7], [5, 6], [6, 22],
+    [6, 7], [6, 24], [6, 8], [7, 9], [7, 8], [8, 10],
+    [8, 24], [8, 9], [8, 26], [9, 10], [9, 11], [10, 26],
     [10, 11], [10, 12], [10, 28], [11, 12], [11, 13], [12, 28],
     [12, 13], [12, 14], [12, 30], [13, 15], [13, 14], [14, 15],
     [14, 32], [14, 30], [14, 16], [15, 16], [16, 32], [17, 19],
@@ -103,7 +104,7 @@ origin_edges_indices = np.array([
 ])
 
 edge_num = origin_edges_indices.shape[0]
-origin_edges_thickness = np.ones(edge_num)*EDGE_THICKNESS
+origin_edges_thickness = np.ones(edge_num) * EDGE_THICKNESS
 
 origin_input_nodes = [81, 82, 83, 84]
 
@@ -119,7 +120,7 @@ origin_output_vectors = np.array([
 ])
 barfem_input_nodes = [84]
 barfem_output_nodes = [68]
-condition_nodes = origin_input_nodes+origin_output_nodes+origin_frozen_nodes
+condition_nodes = origin_input_nodes + origin_output_nodes + origin_frozen_nodes
 
 
 env = BarFemGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
@@ -158,7 +159,7 @@ for epoch, temperature in enumerate(tqdm(temperatures)):
             [current_edges_indices, np.array([target_edge_indice])])
 
     proposed_edges_thickness = np.ones(
-        proposed_edges_indices.shape[0])*EDGE_THICKNESS
+        proposed_edges_indices.shape[0]) * EDGE_THICKNESS
 
     env = BarFemGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
                     barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
@@ -206,7 +207,14 @@ for epoch, temperature in enumerate(tqdm(temperatures)):
         # env.render(os.path.join(
         #     log_dir, 'render_image/{}.png'.format(epoch+1)))
 
-    history['epoch'].append(epoch+1)
+    if gif:
+        env = BarFemGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
+                        barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
+                        current_edges_indices, current_edges_thickness, origin_frozen_nodes)
+        env.reset()
+        env.render(os.path.join(log_dir, 'render_image/{}.png'.format(epoch)))
+
+    history['epoch'].append(epoch + 1)
     history['result_efficiency'].append(current_efficiency)
     # 学習履歴を保存
     with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
@@ -216,6 +224,6 @@ for epoch, temperature in enumerate(tqdm(temperatures)):
                      (epoch + 1, current_efficiency))
     with open(os.path.join(log_dir, "represent_value.txt"), mode='w') as f:
         f.writelines('epoch %d,  best_efficiency: %.5f\n' %
-                     (best_epoch+1, best_efficiency))
+                     (best_epoch + 1, best_efficiency))
     plot_efficiency_history(history, os.path.join(
         log_dir, 'learning_effi_curve.png'))
