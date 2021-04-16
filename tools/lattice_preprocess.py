@@ -3,16 +3,26 @@ import numpy as np
 
 def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                              origin_output_nodes, origin_output_vectors, origin_frozen_nodes, condition_edge_thickness=0.2):
-    """envが処理できるような状態にする．
+    """envが処理できるように，元のnode_posやedge_indiceから必要な情報のみを取り出してくる関数．
     出力されるnode_posの順番は入力ノード，出力ノード，固定ノードの順番，そして，ノード番号はそれぞれ0,1,2...に直される．
     そして全てのエッジの太さは condition_edge_thicknessとして出力される．
+
+    Args:
+        origin_nodes_positions (np.array): 情報を抽出したいnode_pos
+        origin_edges_indices (np.array): 情報を抽出したいedge_indices
+        origin_input_nodes (list): 抽出したい入力ノードの番号
+        origin_input_vectors (np.array): 入力ノードに対する入力方向,[n,2]
+        origin_output_nodes (list): 抽出したい出力ノードの番号
+        origin_output_vectors (np.array): 出力ノードに対する出力方向,[n,2]
+        origin_frozen_nodes (list): 抽出したい固定ノードの番号
+        condition_edge_thickness (float, optional): 初期のエッジの太さ. Defaults to 0.2.
     """
 
     new_input_nodes = np.arange(len(origin_input_nodes))
     new_output_nodes = np.arange(
-        len(origin_output_nodes))+len(origin_input_nodes)
+        len(origin_output_nodes)) + len(origin_input_nodes)
     new_frozen_nodes = np.arange(
-        len(origin_frozen_nodes))+len(origin_input_nodes)+len(origin_output_nodes)
+        len(origin_frozen_nodes)) + len(origin_input_nodes) + len(origin_output_nodes)
 
     new_node_pos = origin_nodes_positions[np.concatenate(
         [origin_input_nodes, origin_output_nodes, origin_frozen_nodes])]
@@ -21,8 +31,9 @@ def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origi
         origin_edges_indices, origin_input_nodes, origin_output_nodes, origin_frozen_nodes)
 
     new_edges_thickness = np.ones(
-        len(new_edges_indices))*condition_edge_thickness
-
+        len(new_edges_indices)) * condition_edge_thickness
+    assert len(origin_input_nodes) == origin_input_vectors.shape[0], "the number of origin_input_nodes should be same as input_vectors"
+    assert len(origin_output_nodes) == origin_output_vectors.shape[0], "the number of origin_output_nodes should be same as output_vectors"
     new_input_vectors = origin_input_vectors
     new_output_vectors = origin_output_vectors
 
@@ -78,10 +89,10 @@ def make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, ori
         [new_edges_thickness, rand_edges_thickness])
 
     frozen_node_num = len(new_frozen_nodes)
-    input_add_edge_indices = [[0, frozen_node_num+2], [frozen_node_num+2, frozen_node_num+3], [
-        frozen_node_num+3, frozen_node_num+4], [frozen_node_num+4, np.random.randint(2, frozen_node_num+2)]]
-    output_add_edge_indices = [[1, frozen_node_num+5], [frozen_node_num+5, frozen_node_num+6], [
-        frozen_node_num+6, frozen_node_num+7], [frozen_node_num+7, np.random.randint(2, frozen_node_num+2)]]
+    input_add_edge_indices = [[0, frozen_node_num + 2], [frozen_node_num + 2, frozen_node_num + 3], [
+        frozen_node_num + 3, frozen_node_num + 4], [frozen_node_num + 4, np.random.randint(2, frozen_node_num + 2)]]
+    output_add_edge_indices = [[1, frozen_node_num + 5], [frozen_node_num + 5, frozen_node_num + 6], [
+        frozen_node_num + 6, frozen_node_num + 7], [frozen_node_num + 7, np.random.randint(2, frozen_node_num + 2)]]
 
     new_edges_indices = np.concatenate(
         [new_edges_indices, input_add_edge_indices, output_add_edge_indices])
