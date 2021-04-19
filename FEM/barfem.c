@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
@@ -104,17 +103,17 @@ void cg_method(double **a, double *x, double *b, int size)
     free(ap);
 }
 
-void print_matrix(double K[6][6], int row, int column)
+void print_matrix(double **K, int row_size, int column_size)
 {
     int i, j;
     /* 入力した行列の表示 */
     printf("\n");
-    for (i = 0; i < row; ++i)
+    for (i = 0; i < row_size; ++i)
     {
-        for (j = 0; j < column; ++j)
+        for (j = 0; j < column_size; ++j)
         {
             printf("%f  ", K[i][j]);
-            if (j == column - 1)
+            if (j == column_size - 1)
                 printf("\n");
         }
     }
@@ -534,6 +533,7 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
     }
 
     // CG法でAx=bを解く
+    print_matrix(A, all_element_size, all_element_size); // 行列を確認する．
     cg_method(A, x, F, all_element_size);
 
     // メモリの解放
