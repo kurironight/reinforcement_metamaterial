@@ -33,7 +33,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         np.int32)  # ここをint32型にしないとコードが正しく作動しない
     edges_thickness = edges_thickness.astype(
         np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
-    displacement = np.ones((node_num*3,))  # 各節点要素の変位を持つ変数
+    displacement = np.ones((node_num * 3,))  # 各節点要素の変位を持つ変数
 
     assert input_vectors.shape[1] == 2, '求められている強制変位もしくは外力はx,y方向のみである'
 
@@ -56,15 +56,15 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     tp = np.uintp
 
     mpp = (nodes_pos.__array_interface__[
-           'data'][0] + np.arange(nodes_pos.shape[0])*nodes_pos.strides[0]).astype(tp)
+           'data'][0] + np.arange(nodes_pos.shape[0]) * nodes_pos.strides[0]).astype(tp)
     eipp = (edges_indices .__array_interface__[
-        'data'][0] + np.arange(edges_indices .shape[0])*edges_indices.strides[0]).astype(tp)
+        'data'][0] + np.arange(edges_indices .shape[0]) * edges_indices.strides[0]).astype(tp)
     etpp = (edges_thickness.__array_interface__[
-        'data'][0] + np.arange(edges_thickness.shape[0])*edges_thickness.strides[0]).astype(tp)
+        'data'][0] + np.arange(edges_thickness.shape[0]) * edges_thickness.strides[0]).astype(tp)
     dspp = (displacement.__array_interface__[
-        'data'][0] + np.arange(displacement.shape[0])*displacement.strides[0]).astype(tp)
+        'data'][0] + np.arange(displacement.shape[0]) * displacement.strides[0]).astype(tp)
     ivpp = (input_vectors.__array_interface__[
-        'data'][0] + np.arange(input_vectors.shape[0])*input_vectors.strides[0]).astype(tp)
+        'data'][0] + np.arange(input_vectors.shape[0]) * input_vectors.strides[0]).astype(tp)
 
     # int型もctypeのc_int型へ変換して渡す
     cnode_num = ctypes.c_int(node_num)
@@ -72,8 +72,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     cinput_node_num = ctypes.c_int(input_node_num)
     cfrozen_node_num = ctypes.c_int(frozen_node_num)
 
-    inp = (ctypes.c_int*len(input_nodes))(*input_nodes)
-    frz = (ctypes.c_int*len(frozen_nodes))(*frozen_nodes)
+    inp = (ctypes.c_int * len(input_nodes))(*input_nodes)
+    frz = (ctypes.c_int * len(frozen_nodes))(*frozen_nodes)
     if mode == 'displacement':
         libc.bar_fem(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
                      frz, dspp)
