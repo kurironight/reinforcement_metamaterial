@@ -22,6 +22,19 @@ void vector_x_matrix(double *y, double **a, double *x, int size)
     }
 }
 
+// y* = Ax とyとで誤差がどれぐらいあるのかを確認．そして，CGの精度を測定する．
+double confirm_acurracy_of_cg(double **a, double *x, double *F, int size){
+    double F_ref[size];
+    double gosa=0.0;
+    int i;
+    vector_x_matrix(F_ref, a, x, size);
+    for (i = 0; i < size; i++)
+    {
+        gosa+=fabs(F_ref[i]-F[i]);
+    }
+    return gosa;
+
+}
 // 内積を計算
 double dot_product(double *x, double *y, int size)
 {
@@ -533,7 +546,6 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
     }
 
     // CG法でAx=bを解く
-    print_matrix(A, all_element_size, all_element_size); // 行列を確認する．
     cg_method(A, x, F, all_element_size);
 
     // メモリの解放
