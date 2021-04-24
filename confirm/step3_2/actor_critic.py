@@ -196,6 +196,7 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
         returns.insert(0, R)
     returns = torch.tensor(returns)
 
+    edge_thick_opt_trigger = False  # advantage>0の場合したときにEdge_thick_optを作動出来るようにする為のトリガー
     for (action, value), (edge_thick_mean, edge_thick_std), R in zip(GCN_saved_actions, Edge_thickness_saved_actions, returns):
 
         advantage = R - value.item()
@@ -211,6 +212,8 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
                     np.abs(action["edge_thickness"] - edge_thick_mean.item())).double(), edge_thick_std.reshape((1)).double())
                 policy_losses.append(
                     (edge_thick_mean_loss + edge_thick_var_loss) * advantage)
+
+                edge_thick_opt_trigger = True  # Edge_thick_optのトリガーを起動
             else:
                 edge_thick_mean_loss = torch.zeros(1)
                 edge_thick_var_loss = torch.zeros(1)
@@ -224,7 +227,8 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
 
     # reset gradients
     Critic_opt.zero_grad()
-    Edge_thick_opt.zero_grad()
+    if edge_thick_opt_trigger:
+        Edge_thick_opt.zero_grad()
 
     # sum up all the values of policy_losses and value_losses
     if len(policy_losses) == 0:
@@ -236,7 +240,8 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
     # perform backprop
     loss.backward()
     Critic_opt.step()
-    Edge_thick_opt.step()
+    if edge_thick_opt_trigger:
+        Edge_thick_opt.step()
 
     # reset rewards and action buffer
     del Critic.rewards[:]
