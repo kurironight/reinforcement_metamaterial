@@ -19,6 +19,12 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
     history = {}
     history['epoch'] = []
     history['result_efficiency'] = []
+    history['mean_efficiency'] = []  # a_meanの値の時のηの値を収納する
+    history['a'] = []
+    history['a_mean'] = []
+    history['a_sigma'] = []
+    history['advantage'] = []
+    history['critic_value'] = []
 
     log_dir = "confirm/step3_2/a_gcn_c_gcn_results/{}".format(test_name)
 
@@ -59,14 +65,14 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
         nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
         for step in range(max_steps):
             action = select_action_gcn_critic_gcn(
-                env, criticNet, edgethickNet, device, log_dir=log_file)
+                env, criticNet, edgethickNet, device, log_dir=log_file, history=history)
 
             next_nodes_pos, _, done, _ = env.step(action)
             reward = env.calculate_simulation(mode='force')
             criticNet.rewards.append(reward)
 
         loss = finish_episode(criticNet, edgethickNet, optimizer_critic,
-                              optimizer_edgethick, gamma, log_dir=log_file)
+                              optimizer_edgethick, gamma, log_dir=log_file, history=history)
 
         history['epoch'].append(episode + 1)
         history['result_efficiency'].append(reward)

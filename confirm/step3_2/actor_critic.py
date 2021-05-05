@@ -8,6 +8,8 @@ from GCN.layer import CensNet
 from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 from collections import namedtuple
 import torch.distributions as tdist
+from .condition import easy_dev
+from env.gym_barfem import BarFemGym
 
 Saved_mean_std_Action = namedtuple(
     'SavedAction', ['mean', 'variance'])
@@ -144,7 +146,7 @@ def make_torch_type_for_GCN(nodes_pos, edges_indices, edges_thickness, node_adj)
     return node, edge, node_adj, edge_adj, D_v, D_e, T
 
 
-def select_action_gcn_critic_gcn(env, criticNet, edgethickNet, device, log_dir=None):
+def select_action_gcn_critic_gcn(env, criticNet, edgethickNet, device, log_dir=None, history=None):
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
     node, edge, node_adj, edge_adj, D_v, D_e, T = make_torch_type_for_GCN(
         nodes_pos, edges_indices, edges_thickness, node_adj)
@@ -170,17 +172,39 @@ def select_action_gcn_critic_gcn(env, criticNet, edgethickNet, device, log_dir=N
     edgethickNet.saved_actions.append(Saved_mean_std_Action(
         edge_thickness[0][0], edge_thickness[0][1]))
 
-    if log_dir != None:
+    if log_dir is not None:
         # lossの確認事項
         with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
             print('edge_thick_mean:', edge_thickness[0][0].item(), file=f)
             print('edge_thick_std:', edge_thickness[0][1].item(), file=f)
             print('edge_thickness:', edge_thickness_action.item(), file=f)
+    if history is not None:
+        node_pos, input_nodes, input_vectors,\
+            output_nodes, output_vectors, frozen_nodes,\
+            edges_indices, edges_thickness, frozen_nodes = easy_dev()
+        calc_effi_env = BarFemGym(node_pos, input_nodes, input_vectors,
+                                  output_nodes, output_vectors, frozen_nodes,
+                                  edges_indices, edges_thickness, frozen_nodes)
+        calc_effi_env.reset()
+        mean_action = {}
+        mean_action['which_node'] = np.array([node1, node2])
+        mean_action['end'] = 0
+        mean_action['edge_thickness'] = np.array([edge_thickness[0][0].item()])
+        mean_action['new_node'] = np.array([[0, 2]])
+        next_nodes_pos, _, done, _ = calc_effi_env.step(mean_action)
+        mean_efficiency = calc_effi_env.calculate_simulation(mode='force')
+
+        # historyにログを残す
+        history['mean_efficiency'].append(mean_efficiency)
+        history['a'].append(edge_thickness_action.item())
+        history['a_mean'].append(edge_thickness[0][0].item())
+        history['a_sigma'].append(edge_thickness[0][1].item())
+        history['critic_value'].append(state_value.item())
 
     return action
 
 
-def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_dir=None):
+def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_dir=None, history=None):
     R = 0
     GCN_saved_actions = Critic.saved_actions
     Edge_thickness_saved_actions = edgethickNet.saved_actions
@@ -248,7 +272,7 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
     del Critic.saved_actions[:]
     del edgethickNet.saved_actions[:]
 
-    if log_dir != None:
+    if log_dir is not None:
         # lossの確認事項
         with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
             f.writelines('reward: %.4f\n value_loss: %.4f policy_loss: %.4f \n' %
@@ -257,4 +281,6 @@ def finish_episode(Critic, edgethickNet, Critic_opt, Edge_thick_opt, gamma, log_
             f.writelines('advantage: %.4f edge_thick_mean_loss: %.4f edge_thick_var_loss: %.4f \n' %
                          (advantage, edge_thick_mean_loss.item(), edge_thick_var_loss.item()))
 
+    if history is not None:
+        history['advantage'].append(advantage.item())
     return loss.item()
