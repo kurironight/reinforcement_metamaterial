@@ -99,7 +99,33 @@ def convert_Vp_to_edgethick(edge_thicknesses, rewards, Vp):
     return edge_thick
 
 
-with open("confirm/step3_2/a_gcn_c_gcn_results/5000確認/history.pkl", 'rb') as web:
+def examine_pattern3_possibility_distribution(history, a_sigma_thresh=6.046791718933308 * 10**(-9)):
+    data_num = len(history['epoch'])  # 本来なら-1すべきかもしれないが，母数を合わせる為にそのままにする
+    current_history_a_sigma = np.array(history['a_sigma'][:-1])
+
+    current_history_a_mean = np.array(history['a_mean'][:-1])
+    current_history_advantage = np.array(history['advantage'][:-1])
+    current_history_a = np.array(history['a'][:-1])
+
+    pattern3_occur = current_history_a_sigma < a_sigma_thresh
+    pattern3_data_num = np.count_nonzero(pattern3_occur)
+
+    A_pos_a_small_to_mean = pattern3_occur & ((current_history_advantage >= 0) & (current_history_a < current_history_a_mean))
+    A_pos_a_big_to_mean = pattern3_occur & ((current_history_advantage >= 0) & (current_history_a >= current_history_a_mean))
+    A_neg_a_small_to_mean = pattern3_occur & ((current_history_advantage < 0) & (current_history_a < current_history_a_mean))
+    A_neg_a_big_to_mean = pattern3_occur & ((current_history_advantage < 0) & (current_history_a >= current_history_a_mean))
+
+    A_pos_a_small_to_mean_rate = np.count_nonzero(A_pos_a_small_to_mean) / pattern3_data_num
+    A_pos_a_big_to_mean_rate = np.count_nonzero(A_pos_a_big_to_mean) / pattern3_data_num
+    A_neg_a_small_to_mean_rate = np.count_nonzero(A_neg_a_small_to_mean) / pattern3_data_num
+    A_neg_a_big_to_mean_rate = np.count_nonzero(A_neg_a_big_to_mean) / pattern3_data_num
+
+    pattern3_occur_rate = pattern3_data_num / data_num
+
+    return pattern3_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate, A_neg_a_small_to_mean_rate, A_neg_a_big_to_mean_rate
+
+
+with open("confirm/step3_2/a_gcn_c_gcn_results/50000確認/history.pkl", 'rb') as web:
     history = pickle.load(web)
 
-print(examine_pattern2_possibility_distribution(history["2"]))
+print(examine_pattern3_possibility_distribution(history["2"]))
