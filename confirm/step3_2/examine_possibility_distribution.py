@@ -33,12 +33,17 @@ def examine_pattern1_possibility_distribution(history):
     current_history_advantage = np.array(history['advantage'][:-1])
     current_history_a = np.array(history['a'][:-1])
 
-    A_pos_a_small_to_mean = ((current_history_advantage >= 0) & (current_history_a < current_history_a_mean)) & (future_history_a_mean < current_history_a_mean)
-    A_pos_a_big_to_mean = ((current_history_advantage >= 0) & (current_history_a >= current_history_a_mean)) & (future_history_a_mean >= current_history_a_mean)
+    pattern1_occur = current_history_advantage >= 0
+    pattern1_data_num = np.count_nonzero(pattern1_occur)
+
+    A_pos_a_small_to_mean = (pattern1_occur & (current_history_a < current_history_a_mean)) & (future_history_a_mean < current_history_a_mean)
+    A_pos_a_big_to_mean = (pattern1_occur & (current_history_a >= current_history_a_mean)) & (future_history_a_mean >= current_history_a_mean)
     A_pos_a_small_to_mean_rate = np.count_nonzero(A_pos_a_small_to_mean) / data_num
     A_pos_a_big_to_mean_rate = np.count_nonzero(A_pos_a_big_to_mean) / data_num
 
-    return A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate
+    pattern1_occur_rate = pattern1_data_num / data_num
+
+    return pattern1_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate
 
 
 def examine_pattern2_possibility_distribution(history):
@@ -54,6 +59,7 @@ def examine_pattern2_possibility_distribution(history):
         rewards = pickle.load(web)
         rewards = np.array(rewards).flatten()
 
+    data_num = len(history['epoch'])  # 本来なら-1すべきかもしれないが，母数を合わせる為にそのままにする
     Vp_a = np.array([convert_Vp_to_edgethick(edge_thicknesses, rewards, Vp) for Vp in np.array(history['critic_value'])])
     future_Vp_a = Vp_a[1:]
 
@@ -84,7 +90,9 @@ def examine_pattern2_possibility_distribution(history):
     small_dir_a_small_to_mean_rate = np.count_nonzero(small_dir_a_small_to_mean) / pattern2_data_num
     small_dir_a_big_to_mean_rate = np.count_nonzero(small_dir_a_big_to_mean) / pattern2_data_num
 
-    return big_dir_a_small_to_mean_rate, big_dir_a_big_to_mean_rate, small_dir_a_small_to_mean_rate, small_dir_a_big_to_mean_rate
+    pattern2_occur_rate = pattern2_data_num / data_num
+
+    return pattern2_occur_rate, big_dir_a_small_to_mean_rate, big_dir_a_big_to_mean_rate, small_dir_a_small_to_mean_rate, small_dir_a_big_to_mean_rate
 
 
 def convert_Vp_to_edgethick(edge_thicknesses, rewards, Vp):
@@ -128,4 +136,4 @@ def examine_pattern3_possibility_distribution(history, a_sigma_thresh=6.04679171
 with open("confirm/step3_2/a_gcn_c_gcn_results/50000確認/history.pkl", 'rb') as web:
     history = pickle.load(web)
 
-print(examine_pattern3_possibility_distribution(history["2"]))
+print(examine_pattern1_possibility_distribution(history["2"]))
