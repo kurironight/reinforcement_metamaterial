@@ -48,6 +48,8 @@ def examine_pattern1_possibility_distribution(history, epoch_start_end=None):
     A_pos_a_big_to_mean_rate = np.count_nonzero(A_pos_a_big_to_mean) / data_num
 
     pattern1_occur_rate = A_pos_a_small_to_mean_rate + A_pos_a_big_to_mean_rate
+    A_pos_a_small_to_mean_rate /= pattern1_occur_rate
+    A_pos_a_big_to_mean_rate /= pattern1_occur_rate
 
     return pattern1_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate
 
@@ -150,6 +152,29 @@ def examine_pattern3_possibility_distribution(history, a_sigma_thresh=6.04679171
 with open("confirm/step3_2/a_gcn_c_gcn_results/50000確認/history.pkl", 'rb') as web:
     history = pickle.load(web)
 
-print(examine_pattern1_possibility_distribution(history["2"], epoch_start_end=None))
-print(examine_pattern2_possibility_distribution(history["2"], (35000, 50000)))
-print(examine_pattern3_possibility_distribution(history["2"], epoch_start_end=None))
+max_converge_range = (1, 6250)
+minimize_range = (6500, 11311)
+min_converge_range = (20000, len(history["2"]['epoch']))
+"""
+pattern1_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate =\
+    examine_pattern1_possibility_distribution(history["2"], epoch_start_end=max_converge_range)
+print(pattern1_occur_rate * A_pos_a_small_to_mean_rate)
+print(pattern1_occur_rate * A_pos_a_big_to_mean_rate)
+
+examine_pattern2_possibility_distribution(history["2"], epoch_start_end=max_converge_range)
+
+pattern1_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate =\
+    examine_pattern1_possibility_distribution(history["2"], epoch_start_end=minimize_range)
+print(pattern1_occur_rate * A_pos_a_small_to_mean_rate)
+print(pattern1_occur_rate * A_pos_a_big_to_mean_rate)
+
+examine_pattern2_possibility_distribution(history["2"], epoch_start_end=minimize_range)
+
+pattern1_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate =\
+    examine_pattern1_possibility_distribution(history["2"], epoch_start_end=min_converge_range)
+print(pattern1_occur_rate * A_pos_a_small_to_mean_rate)
+print(pattern1_occur_rate * A_pos_a_big_to_mean_rate)
+
+examine_pattern2_possibility_distribution(history["2"], epoch_start_end=min_converge_range)
+examine_pattern3_possibility_distribution(history["2"], epoch_start_end=min_converge_range)
+"""
