@@ -7,6 +7,8 @@ from .actor_critic import *
 from env.gym_barfem import BarFemGym
 import numpy as np
 import pickle
+from .examine_possibility_distribution import convert_Vp_to_edgethick
+import matplotlib.pyplot as plt
 
 
 def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
@@ -114,3 +116,63 @@ def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", l
 
     plot_efficiency_history(meanhistory, os.path.join(
         log_dir, 'mean_learning_effi_curve.png'))
+
+
+def plot_Vp_mu_sigma_history(history, save_path):  # step3_2の時のmu,sigma,Vp_aの挙動をチェックする為の関数
+    with open("confirm/step3_2/Vp_edgethick_set/edges_thicknesses.pkl", 'rb') as web:
+        edge_thicknesses = pickle.load(web)
+    with open("confirm/step3_2/Vp_edgethick_set/rewards.pkl", 'rb') as web:
+        rewards = pickle.load(web)
+        rewards = np.array(rewards).flatten()
+
+    epochs = history['epoch']
+    a_mean = np.array(history['a_mean'])
+    a_sigma = np.array(history['a_sigma'])
+    advantage = np.array(history['advantage'])
+    a = np.array(history['a'])
+    Vp_a = np.array([convert_Vp_to_edgethick(edge_thicknesses, rewards, Vp) for Vp in np.array(np.array(history['critic_value']))])
+    result_efficiency = np.array(history['result_efficiency'])
+    epochs = np.array(epochs)
+    result_efficiency = np.array(result_efficiency)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.fill_between(epochs, a_mean + a_sigma, a_mean - a_sigma, facecolor='y', alpha=0.5)
+
+    ax.plot(epochs, Vp_a, label='Vp_a')
+    ax.plot(epochs, a_mean, label='a_mean')
+    ax.plot(epochs, a, label='a')
+    ax.plot(epochs, advantage, label='advantage')
+    #ax.set_xlim(0, 8000)
+    ax.set_xlabel('epoch')
+    #ax.set_ylim(0.15, 0.32)
+    ax.legend()
+    ax.set_title("edgethick curve")
+    plt.savefig(save_path)
+    plt.close()
+
+
+def plot_Vp_efficiency_history(history, save_path):
+    with open("confirm/step3_2/Vp_edgethick_set/edges_thicknesses.pkl", 'rb') as web:
+        edge_thicknesses = pickle.load(web)
+    with open("confirm/step3_2/Vp_edgethick_set/rewards.pkl", 'rb') as web:
+        rewards = pickle.load(web)
+        rewards = np.array(rewards).flatten()
+
+    epochs = history['epoch']
+    Vp = np.array(history['critic_value'])
+    result_efficiency = np.array(history['result_efficiency'])
+    epochs = np.array(epochs)
+    result_efficiency = np.array(result_efficiency)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(epochs, Vp, label='Vp')
+    ax.plot(epochs, result_efficiency, label='result_efficiency')
+    ax.set_xlim(6000, 10000)
+    ax.set_xlabel('epoch')
+    ax.set_ylim(0.8, 1.3)
+    ax.legend()
+    ax.set_title("edgethick curve")
+    plt.savefig(save_path)
+    plt.close()
