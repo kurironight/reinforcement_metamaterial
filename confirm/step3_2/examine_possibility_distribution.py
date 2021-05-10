@@ -157,10 +157,13 @@ def examine_pattern3_possibility_distribution(history, a_sigma_thresh=6.04679171
     return pattern3_occur_rate, A_pos_a_small_to_mean_rate, A_pos_a_big_to_mean_rate, A_neg_a_small_to_mean_rate, A_neg_a_big_to_mean_rate, good_rate, bad_rate
 
 
+"""
+
 with open("confirm/step3_2/a_gcn_c_gcn_results/50000確認/history.pkl", 'rb') as web:
     history = pickle.load(web)
-"""
+
 max_converge_range = (1, 6250)
+max_converge_range = (2001, 6250)
 minimize_range = (6500, 11311)
 min_converge_range = (20000, len(history["2"]['epoch']))
 
