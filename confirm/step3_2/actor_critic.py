@@ -120,6 +120,41 @@ class Edgethick_Actor(nn.Module):
         return y
 
 
+class Edgethick_Actor_no_sigmoid(nn.Module):
+    """入力がstate.
+    """
+
+    def __init__(self, node_in_features, edge_in_features, node_out_features,
+                 edge_out_features):
+        super(Edgethick_Actor_no_sigmoid, self).__init__()
+        self.GCN1 = CensNet(node_in_features, edge_in_features, node_out_features,
+                            edge_out_features)
+        self.GCN2 = CensNet(node_out_features, edge_out_features,
+                            node_out_features, edge_out_features)
+        self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
+        self.mean = torch.nn.Linear(4 * node_out_features, 1)
+        self.std = torch.nn.Linear(4 * node_out_features, 1)
+
+        self.saved_actions = []
+
+    def forward(self, node, edge, node_adj, edge_adj, D_v, D_e, T, node1, node2):
+        """
+        forward of both actor and critic
+        """
+        node, edge = self.GCN1(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        node, edge = self.GCN2(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        node = F.relu(self.predict_v1(node))  # 1*node_num*node_out_features
+        node1_2 = node[:, [node1, node2], :]  # 1*2*node_out_features
+        node1_2 = node.reshape(1, -1)  # 1*(2*node_out_features)
+
+        # var to mean todekaeru
+        mean = self.mean(node1_2)
+        std = self.std(node1_2)
+        y = torch.cat([mean, std], dim=1)
+
+        return y
+
+
 def make_torch_type_for_GCN(nodes_pos, edges_indices, edges_thickness, node_adj):
     # GCNの為の引数を作成
     T = make_T_matrix(edges_indices)
