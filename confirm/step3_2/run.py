@@ -9,9 +9,10 @@ import numpy as np
 import pickle
 from .examine_possibility_distribution import convert_Vp_to_edgethick
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
-def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
+def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, save_pth=False):
     """Actor-Criticを行う．Actor,CriticはGCN
     Actorの指定できるものは，一つのエッジのみの幅を選択できる．
     max_episodes:学習回数
@@ -59,7 +60,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
     optimizer_critic = optim.Adam(
         criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
 
-    for episode in range(max_episodes):
+    for episode in tqdm(range(max_episodes)):
         if log_file:
             with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
                 print('\nepoch:', episode, file=f)
@@ -78,9 +79,9 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False):
 
         history['epoch'].append(episode + 1)
         history['result_efficiency'].append(reward)
-
         if episode % 100 == 0:
-            print("episode:{} total reward:{}".format(episode, reward))
+            if save_pth:
+                save_model(criticNet, edgethickNet, os.path.join(log_dir, "pth"), save_name=str(episode))
 
     env.close()
     plot_efficiency_history(history, os.path.join(
@@ -143,9 +144,9 @@ def plot_Vp_mu_sigma_history(history, save_path):  # step3_2の時のmu,sigma,Vp
     ax.plot(epochs, a_mean, label='a_mean')
     ax.plot(epochs, a, label='a')
     ax.plot(epochs, advantage, label='advantage')
-    #ax.set_xlim(0, 8000)
+    # ax.set_xlim(0, 8000)
     ax.set_xlabel('epoch')
-    #ax.set_ylim(0.15, 0.32)
+    # ax.set_ylim(0.15, 0.32)
     ax.legend()
     ax.set_title("edgethick curve")
     plt.savefig(save_path)
@@ -176,3 +177,99 @@ def plot_Vp_efficiency_history(history, save_path):
     ax.set_title("edgethick curve")
     plt.savefig(save_path)
     plt.close()
+
+
+def save_model(criticNet, edgethickNet, log_dir, save_name="Good"):
+    os.makedirs(log_dir, exist_ok=True)
+    torch.save(criticNet.state_dict(), os.path.join(
+        log_dir, '{}_criticNet.pth'.format(save_name)))
+    torch.save(edgethickNet.state_dict(), os.path.join(
+        log_dir, '{}_edgethickNet.pth'.format(save_name)))
+
+
+def load_actor_gcn_critic_gcn(load_dir, load_epoch, max_episodes=5000, test_name="test", history=None, log_file=False):
+    """ActorCriticにおいて保存されpthをロードし，そこから学習を開始する．
+
+    Args:
+        load_dir ([type]): ロードする対象のpthが複数存在するディレクトリのパスを指定する．
+        load_epoch ([type]): いつのepochから学習を開始するかを決める．
+        max_episodes (int, optional): 学習回数. Defaults to 5000.
+        test_name (str, optional): 保存ファイルの名前. Defaults to "test".
+        history ([type], optional): 保存したhistory.これを指定した時，グラフにもロード結果が適用される. Defaults to None.
+        log_file (bool, optional): Trueにすると，progress.txtに損失関数などの情報のログをとる. Defaults to False.
+    """
+
+    if history is None:
+        history = {}
+        history['epoch'] = []
+        history['result_efficiency'] = []
+        history['mean_efficiency'] = []  # a_meanの値の時のηの値を収納する
+        history['a'] = []
+        history['a_mean'] = []
+        history['a_sigma'] = []
+        history['advantage'] = []
+        history['critic_value'] = []
+    else:
+        for key in history.keys():
+            history[key] = history[key][:load_epoch]
+
+    log_dir = "confirm/step3_2/a_gcn_c_gcn_results/{}".format(test_name)
+
+    assert not os.path.exists(log_dir), "already folder exists"
+    if log_file:
+        log_file = log_dir
+    else:
+        log_file = None
+    os.makedirs(log_dir, exist_ok=True)
+
+    node_pos, input_nodes, input_vectors,\
+        output_nodes, output_vectors, frozen_nodes,\
+        edges_indices, edges_thickness, frozen_nodes = easy_dev()
+    env = BarFemGym(node_pos, input_nodes, input_vectors,
+                    output_nodes, output_vectors, frozen_nodes,
+                    edges_indices, edges_thickness, frozen_nodes)
+    env.reset()
+
+    max_steps = 1
+    lr_actor = 1e-4
+    lr_critic = 1e-3
+    weight_decay = 1e-2
+    gamma = 0.99
+
+    device = torch.device('cpu')
+
+    criticNet = CriticNetwork_GCN(2, 1, 400, 400).to(device).double()
+    edgethickNet = Edgethick_Actor(2, 1, 400, 400).to(device).double()
+
+    criticNet.load_state_dict(torch.load(os.path.join(load_dir, "pth/{}_criticNet.pth".format(load_epoch))))
+    edgethickNet.load_state_dict(torch.load(os.path.join(load_dir, "pth/{}_edgethickNet.pth".format(load_epoch))))
+
+    optimizer_edgethick = optim.SGD(edgethickNet.parameters(), lr=lr_actor)
+    optimizer_critic = optim.Adam(
+        criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
+
+    for episode in tqdm(range(load_epoch, max_episodes)):
+        if log_file:
+            with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+                print('\nepoch:', episode, file=f)
+        env.reset()
+        nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
+        for step in range(max_steps):
+            action = select_action_gcn_critic_gcn(
+                env, criticNet, edgethickNet, device, log_dir=log_file, history=history)
+
+            next_nodes_pos, _, done, _ = env.step(action)
+            reward = env.calculate_simulation(mode='force')
+            criticNet.rewards.append(reward)
+
+        loss = finish_episode(criticNet, edgethickNet, optimizer_critic,
+                              optimizer_edgethick, gamma, log_dir=log_file, history=history)
+
+        history['epoch'].append(episode + 1)
+        history['result_efficiency'].append(reward)
+
+    env.close()
+    plot_efficiency_history(history, os.path.join(
+        log_dir, 'learning_effi_curve.png'))
+
+    return history
