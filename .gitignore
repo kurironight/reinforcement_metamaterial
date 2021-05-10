@@ -155,3 +155,4 @@ try.py
 results/
 prior_thesis_results/
 *.txt
+*.pth
