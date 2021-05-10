@@ -55,7 +55,8 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     device = torch.device('cpu')
 
     criticNet = CriticNetwork_GCN(2, 1, 400, 400).to(device).double()
-    edgethickNet = Edgethick_Actor(2, 1, 400, 400).to(device).double()
+    #edgethickNet = Edgethick_Actor(2, 1, 400, 400).to(device).double()
+    edgethickNet = Edgethick_Actor_no_sigmoid(2, 1, 400, 400).to(device).double()
     optimizer_edgethick = optim.Adam(edgethickNet.parameters(), lr=lr_actor)
     optimizer_critic = optim.Adam(
         criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
