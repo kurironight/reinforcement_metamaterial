@@ -150,6 +150,8 @@ class Edgethick_Actor_no_sigmoid(nn.Module):
         # var to mean todekaeru
         mean = self.mean(node1_2)
         std = self.std(node1_2)
+        mean = torch.abs(mean)
+        std = torch.abs(std)
         y = torch.cat([mean, std], dim=1)
 
         return y
