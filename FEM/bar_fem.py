@@ -83,3 +83,25 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
                            frz, dspp)
 
     return displacement
+
+
+"""
+使用例
+
+from FEM.bar_fem import barfem
+import numpy as np
+
+nodes_pos = np.array(
+    [[0, 0], [5, 0]]
+)
+edges_indices = np.array([[0, 1]])
+edges_thickness = np.array([2])
+input_nodes = [1]
+input_vectors = np.array([[0, -1000]])
+frozen_nodes = [0]
+
+displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
+                      input_vectors, frozen_nodes, mode="force")
+
+print(displacement)
+"""
