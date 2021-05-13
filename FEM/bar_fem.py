@@ -35,7 +35,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
     displacement = np.ones((node_num * 3,))  # 各節点要素の変位を持つ変数
 
-    assert input_vectors.shape[1] == 2, '求められている強制変位もしくは外力はx,y方向のみである'
+    assert input_vectors.shape[1] == 2, 'input_vectorsの形は[[[0, -1]],[0,3]]のような形である'
+    assert edges_indices.shape[1] == 2, 'edges_indicesの形は[[0,1],[2,3]]のような形である'
 
     assert np.all(np.isin(np.arange(node_num), edges_indices)
                   ), 'edge_indicesでは触れられていないノードが存在する'
