@@ -10,6 +10,8 @@ edges_thickness = np.array([2, 4])
 input_nodes = [2]
 input_vectors = np.array([[0, -1000]])
 frozen_nodes = [0]
+
+# C言語を用いたbarfem
 displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                       input_vectors, frozen_nodes, mode="force")
 print(displacement)
