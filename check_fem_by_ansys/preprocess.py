@@ -34,7 +34,6 @@ def make_random_fem_condition(max_node_num, max_edge_num):
             flag = 1
         else:
             continue
-        frozen_num = np.random.randint(1, node_num)
         edge_num = edges_indices.shape[0]
         ref_nodes = np.arange(node_num)
 
@@ -46,6 +45,7 @@ def make_random_fem_condition(max_node_num, max_edge_num):
         edges_thickness = np.random.uniform(0, 1, edge_num)
 
         # 固定ノード，外力ノードを選択
+        frozen_num = np.random.randint(1, node_num)
         frozen_nodes = np.unique(np.random.randint(0, node_num, frozen_num)).tolist()
         input_nodes = np.random.randint(0, node_num, 1).tolist()
         while input_nodes[0] in frozen_nodes:
