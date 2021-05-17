@@ -106,7 +106,6 @@ void cg_method(double **a, double *x, double *b, int size)
         if (iter == TMAX && EPS < err)
         {
             printf("failed \n");
-            exit(1);
         }
         // printf("%d  ", iter);
         // printf("%f  \n", err);
