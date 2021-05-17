@@ -1,10 +1,13 @@
 import numpy as np
 
-max_node_num = 4
-max_edge_num = 3
-
 
 def make_random_fem_condition(max_node_num, max_edge_num):
+    """ランダムにFEMの条件を生成する
+
+    Args:
+        max_node_num (int): 最大のノードの数
+        max_edge_num (int): 最大のエッジの数
+    """
     assert max_edge_num > 2, "max_edge_numは3以上である必要あり"
 
     flag = 0
@@ -42,7 +45,7 @@ def make_random_fem_condition(max_node_num, max_edge_num):
 
         # ノードの位置およびエッジの太さをランダム設定
         nodes_pos = np.random.uniform(0, 1, (node_num, 2))
-        edges_thickness = np.random.uniform(0, 1, edge_num)
+        edges_thickness = np.random.uniform(0.1, 1, edge_num)
 
         # 固定ノード，外力ノードを選択
         frozen_num = np.random.randint(1, node_num)
