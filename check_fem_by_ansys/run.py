@@ -9,15 +9,7 @@ max_edge_num = 250
 
 
 def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
-                        input_nodes, input_vectors, frozen_nodes, log_dir=None):
-    if log_dir is not None:
-        os.makedirs(log_dir, exist_ok=True)
-        np.save(os.path.join(log_dir, 'nodes_pos.npy'), nodes_pos)
-        np.save(os.path.join(log_dir, 'edges_indices.npy'), edges_indices)
-        np.save(os.path.join(log_dir, 'edges_thickness.npy'), edges_thickness)
-        np.save(os.path.join(log_dir, 'input_nodes.npy'), input_nodes)
-        np.save(os.path.join(log_dir, 'input_vectors.npy'), input_vectors)
-        np.save(os.path.join(log_dir, 'frozen_nodes.npy'), frozen_nodes)
+                        input_nodes, input_vectors, frozen_nodes):
 
     # C言語を用いたbarfem
     displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,

@@ -4,7 +4,7 @@
 #include <time.h>
 
 #define TMAX 1000
-#define EPS (1.0e-6)
+#define EPS (1.0e-7)
 
 // ベクトルに行列を作用 y = Ax
 void vector_x_matrix(double *y, double **a, double *x, int size)
@@ -549,8 +549,8 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
 
     // CG法でAx=bを解く
     cg_method(A, x, F, all_element_size);
-    double gosa = confirm_acurracy_of_cg(A, x, F, all_element_size);
-    printf("%f  ", gosa);
+    // double gosa = confirm_acurracy_of_cg(A, x, F, all_element_size);
+    // printf("%f  ", gosa);
 
     // メモリの解放
     for (int i = 0; i < all_element_size; i++)
