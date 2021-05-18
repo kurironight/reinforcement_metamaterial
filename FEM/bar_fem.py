@@ -6,7 +6,7 @@ import numpy as np
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
-def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement"):
+def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, tmax=1000, eps=1.0e-7, mode="displacement"):
     """バーFEMを行う
 
     Args:
@@ -16,11 +16,14 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         input_nodes (list): 変位を入力するノードを指定している
         input_vectors (np.array): 入力する変位(or 力)を指定している
         frozen_nodes (list)): 固定しているノードを指定している
+        tmax (int, optional): 共益勾配法のステップ数. Defaults to 1000.
+        eps (double, optional): 共益勾配法の収束条件. Defaults to 1.0e-7.
         mode(str): 強制変位か外力の条件の時の有限要素法を扱う．強制変位の時は"displacement",外力の時は"force"とする．
 
     Returns:
         [np.array]: 各要素の変位を示している．
     """
+
     node_num = nodes_pos.shape[0]
     edge_num = edges_indices.shape[0]
     input_node_num = len(input_nodes)
@@ -46,9 +49,9 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     _DOUBLE_PP = ndpointer(dtype=np.uintp, ndim=1, flags='C')
     # 関数の引数の型を指定(ctypes)　
     libc.bar_fem.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, ct.c_int32, ct.c_int32, ct.c_int32,
-                             ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP]
+                             ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ct.c_double]
     libc.bar_fem_force.argtypes = [_DOUBLE_PP, _DOUBLE_PP, _DOUBLE_PP, ct.c_int32, ct.c_int32, ct.c_int32,
-                                   ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP]
+                                   ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ctypes.POINTER(ctypes.c_int), _DOUBLE_PP, ct.c_int32, ct.c_double]
     # 関数が返す値の型を指定(今回は返り値なし)
     libc.bar_fem.restype = None
     libc.bar_fem_force.restype = None
@@ -72,15 +75,17 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     cedge_num = ctypes.c_int(edge_num)
     cinput_node_num = ctypes.c_int(input_node_num)
     cfrozen_node_num = ctypes.c_int(frozen_node_num)
+    ctmax = ctypes.c_int(tmax)
+    ceps = ctypes.c_double(eps)
 
     inp = (ctypes.c_int * len(input_nodes))(*input_nodes)
     frz = (ctypes.c_int * len(frozen_nodes))(*frozen_nodes)
     if mode == 'displacement':
         libc.bar_fem(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
-                     frz, dspp)
+                     frz, dspp, ctmax, ceps)
     elif mode == 'force':
         libc.bar_fem_force(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
-                           frz, dspp)
+                           frz, dspp, ctmax, ceps)
 
     return displacement
 

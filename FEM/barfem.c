@@ -3,9 +3,6 @@
 #include <math.h>
 #include <time.h>
 
-#define TMAX 1000
-#define EPS (1.0e-7)
-
 // ベクトルに行列を作用 y = Ax
 void vector_x_matrix(double *y, double **a, double *x, int size)
 {
@@ -60,7 +57,7 @@ double vector_norm(double *x, int size)
 }
 
 // CG法
-void cg_method(double **a, double *x, double *b, int size)
+void cg_method(double **a, double *x, double *b, int size, int TMAX, double EPS)
 {
     int i, iter;
     double *p = malloc(size * sizeof(double));
@@ -236,7 +233,7 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_vectors, int frozen_node_num, int *frozen_nodes, double **displacement)
+void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_vectors, int frozen_node_num, int *frozen_nodes, double **displacement, int tmax, double eps)
 {
     int i, j, k;
     int node1, node2;
@@ -398,7 +395,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
     }
 
     // CG法でAx=bを解く
-    cg_method(A, x, F, all_element_size);
+    cg_method(A, x, F, all_element_size, tmax, eps);
 
     // メモリの解放
     for (int i = 0; i < all_element_size; i++)
@@ -415,7 +412,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
     free(f_array);
 }
 
-void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement)
+void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement, int tmax, double eps)
 {
     int i, j, k;
     int node1, node2;
@@ -547,7 +544,7 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
     }
 
     // CG法でAx=bを解く
-    cg_method(A, x, F, all_element_size);
+    cg_method(A, x, F, all_element_size, tmax, eps);
     // double gosa = confirm_acurracy_of_cg(A, x, F, all_element_size);
     // printf("%f  ", gosa);
 

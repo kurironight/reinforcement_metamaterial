@@ -8,11 +8,11 @@ max_edge_num = 250
 
 
 def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
-                        input_nodes, input_vectors, frozen_nodes):
+                        input_nodes, input_vectors, frozen_nodes, tmax=1000, eps=1.0e-7):
 
     # C言語を用いたbarfem
     displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
-                          input_vectors, frozen_nodes, mode="force")
+                          input_vectors, frozen_nodes, tmax, eps, mode="force")
 
     # APDLの設定
     mapdl = launch_mapdl()
