@@ -10,6 +10,9 @@ max_edge_pos = 0.1  # 100*99/2の中で500このエッジが存在する確率�
 
 error_num = 0
 
+tmax = 1000
+eps = 1e-7
+
 for i in tqdm(range(1000)):
     nodes_pos, edges_indices, edges_thickness,\
         input_nodes, input_vectors, frozen_nodes = \
@@ -17,7 +20,7 @@ for i in tqdm(range(1000)):
     output_nodes = [0]
     output_vectors = np.array([[1, 1]])
     result = compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
-                                 input_nodes, input_vectors, frozen_nodes)
+                                 input_nodes, input_vectors, frozen_nodes, tmax, eps)
 
     if not result:
         error_num += 1
