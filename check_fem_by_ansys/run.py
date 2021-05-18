@@ -2,7 +2,6 @@ from ansys.mapdl.core import launch_mapdl
 from FEM.bar_fem import barfem
 
 import numpy as np
-import os
 
 max_node_num = 250
 max_edge_num = 250
@@ -61,6 +60,8 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
     z_rot = mapdl.post_processing.nodal_rotation('Z')
 
     ansys_disp = np.stack([x_disp, y_disp, z_rot]).T.flatten()
+
+    mapdl.exit()  # ポート番号などをリセットするために必要
 
     # 厳密には少し小さい値の部分が異なる為，allclose構文を利用
     return np.allclose(ansys_disp, displacement)
