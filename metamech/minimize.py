@@ -34,6 +34,8 @@ if platform.system() == "Darwin":
     mylib_path = Path(__file__).parent / "./minimize.dylib"
 elif platform.system() == "Linux":
     mylib_path = Path(__file__).parent / "./minimize.sso"
+elif platform.system() == "Windows":
+    mylib_path = Path(__file__).parent / "./minimize.sso"
 
 try:
     mylib = ctypes.CDLL(str(mylib_path))
