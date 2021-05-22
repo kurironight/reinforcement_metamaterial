@@ -17,7 +17,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         input_vectors (np.array): 入力する変位(or 力)を指定している
         frozen_nodes (list)): 固定しているノードを指定している
         tmax (int, optional): 共益勾配法のステップ数. Defaults to 1000.
-        eps (double, optional): 共益勾配法の収束条件. Defaults to 1.0e-7.
+        eps (double, optional): 共益勾配法の収束条件. Defaults to 1.0e-8.
         mode(str): 強制変位か外力の条件の時の有限要素法を扱う．強制変位の時は"displacement",外力の時は"force"とする．
 
     Returns:
@@ -37,6 +37,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     edges_thickness = edges_thickness.astype(
         np.float64)  # ここをfloat64型にしないとコードが正しく作動しない
     displacement = np.ones((node_num * 3,))  # 各節点要素の変位を持つ変数
+    tmax = int(tmax)
+    eps = float(eps)
 
     assert input_vectors.shape[1] == 2, 'input_vectorsの形は[[[0, -1]],[0,3]]のような形である'
     assert edges_indices.shape[1] == 2, 'edges_indicesの形は[[0,1],[2,3]]のような形である'
