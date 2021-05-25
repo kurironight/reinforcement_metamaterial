@@ -32,8 +32,7 @@ class MetamechGym(gym.Env):
         self.input_nodes = input_nodes
         self.input_vectors = input_vectors
         self.output_nodes = output_nodes
-        output_vector_magnitude = np.linalg.norm(output_vectors)
-        self.output_vectors = output_vectors / output_vector_magnitude
+        self.output_vectors = output_vectors
         self.frozen_nodes = frozen_nodes
         self.first_edges_indices = edges_indices.copy()
         self.first_edges_thickness = edges_thickness.copy()

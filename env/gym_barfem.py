@@ -48,8 +48,9 @@ class BarFemGym(MetamechGym):
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
 
-        efficiency = np.dot(self.output_vectors, displacement[[
-                            output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]])
+        denominator = np.mean([np.dot(self.input_vectors[i] / np.linalg.norm(self.input_vectors[i]), displacement[[input_node * 3 + 0, input_node * 3 + 1]]) for i, input_node in enumerate(input_nodes)])
+        efficiency = np.dot(self.output_vectors / np.linalg.norm(self.output_vectors), displacement[[
+                            output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]]) / denominator
         return efficiency
 
     # 環境の描画
