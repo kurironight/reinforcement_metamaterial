@@ -17,13 +17,15 @@ class BarFemGym(MetamechGym):
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
         input_nodes = np.array(self.input_nodes)
         frozen_nodes = np.array(self.frozen_nodes)
+        output_nodes = np.array(self.output_nodes)
         node_num = nodes_pos.shape[0]
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
         mask = np.isin(np.arange(node_num), edges_indices)
-        if not np.all(mask):  # barfemの為，edge_indicesではnodes_posの内，触れられていないノードが存在しないように処理する
+        if not np.all(mask):  # edges_indicesで触れられていないノードがnodes_posに存在する時，これらを除外したうえで，barfemにかける
             processed_input_nodes = input_nodes.copy()
             processed_frozen_nodes = frozen_nodes.copy()
+            processed_output_nodes = output_nodes.copy()
             processed_edges_indices = edges_indices.copy()
             prior_index = np.arange(node_num)[mask]
             processed_nodes_pos = nodes_pos[mask]
@@ -33,18 +35,21 @@ class BarFemGym(MetamechGym):
                                             prior_index] = index
                     # input_nodesとfrozen_nodes部分のラベルを変更
                     processed_input_nodes[input_nodes == prior_index] = index
+                    processed_output_nodes[output_nodes == prior_index] = index
                     processed_frozen_nodes[frozen_nodes == prior_index] = index
             nodes_pos = processed_nodes_pos
             edges_indices = processed_edges_indices
             input_nodes = processed_input_nodes
+            output_nodes = processed_output_nodes
             frozen_nodes = processed_frozen_nodes
         input_nodes = input_nodes.tolist()
+        output_nodes = output_nodes.tolist()
         frozen_nodes = frozen_nodes.tolist()
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
 
         efficiency = np.dot(self.output_vectors, displacement[[
-                            self.output_nodes[0] * 3 + 0, self.output_nodes[0] * 3 + 1]])
+                            output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]])
         return efficiency
 
     # 環境の描画
