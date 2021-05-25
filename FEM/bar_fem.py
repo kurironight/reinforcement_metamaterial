@@ -40,6 +40,7 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     tmax = int(tmax)
     eps = float(eps)
 
+    assert edges_indices.shape[0] == edges_thickness.shape[0], 'edges_thicknessとedges_indicesは同じ数あるべきである'
     assert input_vectors.shape[1] == 2, 'input_vectorsの形は[[[0, -1]],[0,3]]のような形である'
     assert edges_indices.shape[1] == 2, 'edges_indicesの形は[[0,1],[2,3]]のような形である'
 
