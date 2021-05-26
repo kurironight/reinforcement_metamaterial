@@ -6,7 +6,7 @@ import numpy as np
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
-def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, tmax=10000, eps=1.0e-8, mode="displacement"):
+def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement", tmax=10000, eps=1.0e-8):
     """バーFEMを行う
 
     Args:
