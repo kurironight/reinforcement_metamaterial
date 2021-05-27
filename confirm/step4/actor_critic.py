@@ -149,10 +149,10 @@ class X_Y_Actor(nn.Module):
         self.mean = torch.nn.Linear(node_out_features, 2)
         self.std = torch.nn.Linear(node_out_features, 2)
 
-        self.b1 = torch.nn.BatchNorm1d(node_out_features)
-        self.b2 = torch.nn.BatchNorm1d(edge_out_features)
-        self.b3 = torch.nn.BatchNorm1d(node_out_features)
-        self.b4 = torch.nn.BatchNorm1d(edge_out_features)
+        # self.b1 = torch.nn.BatchNorm1d(node_out_features)
+        # self.b2 = torch.nn.BatchNorm1d(edge_out_features)
+        # self.b3 = torch.nn.BatchNorm1d(node_out_features)
+        # self.b4 = torch.nn.BatchNorm1d(edge_out_features)
 
         self.saved_actions = []
 
@@ -161,9 +161,9 @@ class X_Y_Actor(nn.Module):
         forward of both actor and critic
         """
         node, edge = self.GCN1(node, edge, node_adj, edge_adj, D_v, D_e, T)
-        node, edge = adopt_batch_norm(node, edge, self.b1, self.b2)
+        # node, edge = adopt_batch_norm(node, edge, self.b1, self.b2)
         node, edge = self.GCN2(node, edge, node_adj, edge_adj, D_v, D_e, T)
-        node, edge = adopt_batch_norm(node, edge, self.b3, self.b4)
+        # node, edge = adopt_batch_norm(node, edge, self.b3, self.b4)
         node = F.relu(self.predict_v1(node))  # 1*node_num*node_out_features
         node = torch.mean(node, dim=1)  # 1*node_out_features
 
