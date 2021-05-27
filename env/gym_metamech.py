@@ -106,21 +106,35 @@ class MetamechGym(gym.Env):
             self.info['status'] = 0
             return obs, reward, True, self.info
 
+        self.info['status'] = 3  # 新規ノードを追加しないでエッジを追加する場合
+        # 通常ルート
+        if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
+            identical_node_index = np.asarray(np.where(nodes_pos[:, 0] == action['new_node'][0][0], True, False) & np.where(nodes_pos[:, 1] == action['new_node'][0][1], True, False)).nonzero()[0]
+            if identical_node_index.shape[0] == 0:
+                nodes_pos = np.concatenate([nodes_pos, action['new_node']])
+                self.info['status'] = 4
+            else:
+                # 新規ノードと既に存在するノードとで一致するものがある場合
+                action['which_node'][1] = identical_node_index
+                if action['which_node'][0] == action['which_node'][1]:  # 追加するエッジのindiceが[1,1]や[2,2]などになってしまった場合
+                    self.info['status'] = 5
+                    return self.current_obs, 0, False, self.info
+
         # 既に存在するエッジを指定している場合
         index = np.arange(edges_indices.shape[0])
         index = index[np.isin(edges_indices[:, 0], action['which_node']) &
                       np.isin(edges_indices[:, 1], action['which_node'])]
         if index.shape != (0,):
-            assert index.shape[0] == 1, 'there are two edge_indices which is identical'
+            assert index.shape[0] == 1, 'there are two or more edge_indices which is identical'
             # もし，条件ノード間のエッジを選択した場合，何もしない
             ref_edge_indice = edges_indices[index][0]
 
             if np.isin([ref_edge_indice[0]], self.condition_nodes)[0] & np.isin([ref_edge_indice[1]], self.condition_nodes)[0]:
+                # 条件ノード間のエッジを指定した場合
                 self.info['status'] = 1
                 return self.current_obs, 0, False, self.info
             else:
                 # 条件ノード間のエッジ以外を選択した場合，そのエッジの太さを交換する
-                # change thickness
                 edges_thickness[index] = action['edge_thickness']
                 # renew obs
                 self._renew_current_obs(
@@ -129,12 +143,6 @@ class MetamechGym(gym.Env):
                 obs = self.current_obs
                 self.info['status'] = 2
             return obs, reward, False, self.info
-
-        self.info['status'] = 3
-        # 通常ルート
-        if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
-            nodes_pos = np.concatenate([nodes_pos, action['new_node']])
-            self.info['status'] = 4
 
         edges_indices = np.concatenate([edges_indices, np.array(
             [[action['which_node'][0], action['which_node'][1]]])])
