@@ -98,7 +98,10 @@ class MetamechGym(gym.Env):
         # padding部分を排除した情報を抽出
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
         node_num = nodes_pos.shape[0]
-
+        if action['which_node'][1] < action['which_node'][0]:  # action["which_node"]の順番を正す
+            ref = action['which_node'][1]
+            action['which_node'][1] = action['which_node'][0]
+            action['which_node'][0] = ref
         assert action['which_node'][1] <= node_num and action['which_node'][
             0] < node_num, 'action selects node which is higher than existing {} node or new node'.format(node_num)
         assert action['which_node'][1] != action['which_node'][0], 'same node are selected for action'
@@ -148,6 +151,10 @@ class MetamechGym(gym.Env):
                 self.info['status'] = 2
             return obs, reward, False, self.info
 
+        if action['which_node'][1] < action['which_node'][0]:  # action["which_node"]の順番を正す
+            ref = action['which_node'][1]
+            action['which_node'][1] = action['which_node'][0]
+            action['which_node'][0] = ref
         edges_indices = np.concatenate([edges_indices, np.array(
             [[action['which_node'][0], action['which_node'][1]]])])
 
