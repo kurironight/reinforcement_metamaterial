@@ -23,6 +23,10 @@ class MetamechGym(gym.Env):
                  output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes):
         super(MetamechGym, self).__init__()
 
+        assert np.unique(node_pos, axis=0).shape[0] == node_pos.shape[0], "nodes_pos内部で同一の座標が存在してはいけない"
+        edges_indices = np.sort(edges_indices, axis=1)  # edges_indicesの内部の順番を，[0,1],[3,7]のように，二番目のindexの方が値が大きいようにする
+        assert np.unique(edges_indices, axis=0).shape[0] == edges_indices.shape[0], "edges_indices内部で同一のものが存在してはいけない"
+
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
 
