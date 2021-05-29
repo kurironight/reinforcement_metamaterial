@@ -215,14 +215,12 @@ def select_action_gcn_critic_gcn(env, criticNet, x_y_Net, device, log_dir=None, 
                   edge_adj, D_v, D_e, T)
     x_tdist = tdist.Normal(
         x_y[0][0].item(), x_y[0][2].item())
-    print("x:", x_y[0][0].item(), x_y[0][2].item())
     y_tdist = tdist.Normal(
         x_y[0][1].item(), x_y[0][3].item())
-    print("y:", x_y[0][1].item(), x_y[0][3].item())
     x_action = x_tdist.sample()
-    x_action = torch.clamp(x_action, min=0.01, max=0.99)
+    x_action = torch.clamp(x_action, min=0, max=1)
     y_action = y_tdist.sample()
-    y_action = torch.clamp(y_action, min=0.01, max=0.99)
+    y_action = torch.clamp(y_action, min=0, max=1)
 
     action = {}
     action['which_node'] = np.array([node1, node2])
