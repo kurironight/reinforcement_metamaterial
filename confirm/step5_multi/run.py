@@ -6,14 +6,10 @@ import torch.multiprocessing as mp
 import math
 import os
 from .condition import easy_dev
-from tools.plot import plot_efficiency_history
-import os
 from .actor_critic import *
 from env.gym_barfem import BarFemGym
 import numpy as np
 from confirm.step5_multi.actor_critic import Select_node1_model, Select_node2_model, CriticNetwork_GCN, Edgethick_Actor, X_Y_Actor
-
-MAX_EP = 50000
 
 
 class Net(nn.Module):
@@ -62,7 +58,7 @@ class Net(nn.Module):
 
 class Worker(mp.Process):
     def __init__(self, global_criticNet, global_x_y_Net, global_node1Net, global_node2Net,
-                 Critic_opt, x_y_opt, Node1_opt, Node2_opt, global_ep, global_ep_r, res_queue, name, gamma=0.99):
+                 Critic_opt, x_y_opt, Node1_opt, Node2_opt, global_ep, global_ep_r, res_queue, name, gamma=0.99, total_episodes=5000):
         super(Worker, self).__init__()
         self.name = 'w%i' % name
         self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
@@ -84,6 +80,7 @@ class Worker(mp.Process):
         self.env.reset()
 
         self.gamma = gamma  # 報酬減衰率
+        self.total_episodes = total_episodes  # すべてのプロセスにおいての合計epoch
 
     def finish_episode(self, log_dir=None, history=None):
         R = 0
@@ -152,12 +149,12 @@ class Worker(mp.Process):
 
         for lp, gp in zip(self.local_criticNet.parameters(), self.global_criticNet.parameters()):
             gp._grad = lp.grad
-        for lp, gp in zip(self.local_x_y_Net.parameters(), self.global_x_y_Net.parameters()):
-            gp._grad = lp.grad
         for lp, gp in zip(self.local_node1Net.parameters(), self.global_node1Net.parameters()):
             gp._grad = lp.grad
+        for lp, gp in zip(self.local_node2Net.parameters(), self.global_node2Net.parameters()):
+            gp._grad = lp.grad
         if x_y_opt_trigger:
-            for lp, gp in zip(self.local_node2Net.parameters(), self.global_node2Net.parameters()):
+            for lp, gp in zip(self.local_x_y_Net.parameters(), self.global_x_y_Net.parameters()):
                 gp._grad = lp.grad
 
         self.Critic_opt.step()
@@ -178,7 +175,7 @@ class Worker(mp.Process):
         return loss.item()
 
     def run(self, max_episodes=5000, test_name="test", log_file=False, save_pth=False, history=None, device=torch.device('cpu')):
-        while self.g_ep.value < MAX_EP:
+        while self.g_ep.value < self.total_episodes:
             # 入力ノードを再設定している為，ここに追加
             node_pos, input_nodes, input_vectors,\
                 output_nodes, output_vectors, frozen_nodes,\
