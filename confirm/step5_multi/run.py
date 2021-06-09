@@ -101,7 +101,7 @@ class Worker(mp.Process):
         returns = torch.tensor(returns)
 
         x_y_opt_trigger = False  # advantage>0の場合したときにx_y_optを作動出来るようにする為のトリガー
-        for (action, value), (x_y_mean, x_y_std), node1_prob, node2_prob, R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
+        for (action, value), (x_y_mean, x_y_std, x_dist, y_dist), (node1_prob, node1_dist), (node2_prob, node2_dist), R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
 
             advantage = R - value.item()
 
@@ -110,7 +110,7 @@ class Worker(mp.Process):
                 print("okasii")
             else:
                 log_probs = torch.cat(
-                    [node1_prob.log_prob, node2_prob.log_prob])
+                    [node1_prob, node2_prob])
                 policy_loss = -torch.mean(log_probs) * advantage
 
                 policy_losses.append(policy_loss)
@@ -214,3 +214,111 @@ class Worker(mp.Process):
                     break
 
         self.res_queue.put(None)
+
+
+class Worker_entropy(Worker):
+    def __init__(self, global_criticNet, global_x_y_Net, global_node1Net, global_node2Net,
+                 Critic_opt, x_y_opt, Node1_opt, Node2_opt, global_ep, global_ep_r, res_queue, name, gamma=0.99, total_episodes=5000):
+        super(Worker_entropy, self).__init__(global_criticNet, global_x_y_Net, global_node1Net, global_node2Net,
+                                             Critic_opt, x_y_opt, Node1_opt, Node2_opt, global_ep, global_ep_r, res_queue, name, gamma, total_episodes)
+
+    def finish_episode(self, log_dir=None, history=None):
+        R = 0
+        GCN_saved_actions = self.local_criticNet.saved_actions
+        x_y_saved_actions = self.local_x_y_Net.saved_actions
+        node1Net_saved_actions = self.local_node1Net.saved_actions
+        node2Net_saved_actions = self.local_node2Net.saved_actions
+
+        policy_losses = []  # list to save actor (policy) loss
+        value_losses = []  # list to save critic (value) loss
+        returns = []  # list to save the true values
+
+        # calculate the true value using rewards returned from the environment
+        for r in self.local_criticNet.rewards[:: -1]:
+            # calculate the discounted value
+            R = r + self.gamma * R
+            returns.insert(0, R)
+        returns = torch.tensor(returns)
+
+        x_y_opt_trigger = False  # advantage>0の場合したときにx_y_optを作動出来るようにする為のトリガー
+        for (action, value), (x_y_mean, x_y_std, x_dist, y_dist), (node1_prob, node1_dist), (node2_prob, node2_dist), R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
+
+            advantage = R - value.item()
+
+            # calculate actor (policy) loss
+            if action["end"]:
+                print("okasii")
+            else:
+                log_probs = torch.cat(
+                    [node1_prob, node2_prob])
+                node_select_entropy_loss = node1_dist.entropy() + node2_dist.entropy()
+                policy_loss = -torch.mean(log_probs) * advantage
+
+                policy_losses.append(policy_loss)
+                if advantage > 0:
+                    x_y_mean_loss = F.l1_loss(torch.from_numpy(
+                        action["new_node"][0]).double(), x_y_mean.double())
+                    x_y_var_loss = F.l1_loss(torch.from_numpy(
+                        np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
+
+                    x_y_entropy_loss = x_dist.entropy() + y_dist.entropy()
+                    policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
+
+                    x_y_opt_trigger = True  # x_y_optのトリガーを起動
+                else:
+                    x_y_mean_loss = torch.zeros(1)
+                    x_y_var_loss = torch.zeros(1)
+                    x_y_entropy_loss = 0
+
+            # calculate critic (value) loss using L1 loss
+            value_losses.append(
+                F.l1_loss(value.double(), torch.tensor([[R]]).double()))
+
+        # reset gradients
+        self.Critic_opt.zero_grad()
+        self.Node1_opt.zero_grad()
+        self.Node2_opt.zero_grad()
+        if x_y_opt_trigger:
+            self.x_y_opt.zero_grad()
+
+        # sum up all the values of policy_losses and value_losses
+        if len(policy_losses) == 0:
+            loss = torch.stack(value_losses).sum()
+        else:
+            loss = torch.stack(policy_losses).sum() + \
+                torch.stack(value_losses).sum() + 0.005 * (node_select_entropy_loss + x_y_entropy_loss)
+
+        # perform backprop
+        loss.backward()
+        for lp, gp in zip(self.local_criticNet.parameters(), self.global_criticNet.parameters()):
+            gp._grad = lp.grad
+        for lp, gp in zip(self.local_node1Net.parameters(), self.global_node1Net.parameters()):
+            gp._grad = lp.grad
+        for lp, gp in zip(self.local_node2Net.parameters(), self.global_node2Net.parameters()):
+            gp._grad = lp.grad
+        if x_y_opt_trigger:
+            for lp, gp in zip(self.local_x_y_Net.parameters(), self.global_x_y_Net.parameters()):
+                gp._grad = lp.grad
+
+        self.Critic_opt.step()
+        self.Node1_opt.step()
+        self.Node2_opt.step()
+        if x_y_opt_trigger:
+            self.x_y_opt.step()
+
+        # pull global parameters
+        self.local_criticNet.load_state_dict(self.global_criticNet.state_dict())
+        self.local_x_y_Net.load_state_dict(self.global_x_y_Net.state_dict())
+        self.local_node1Net.load_state_dict(self.global_node1Net.state_dict())
+        self.local_node2Net.load_state_dict(self.global_node2Net.state_dict())
+
+        # reset rewards and action buffer
+        del self.local_criticNet.rewards[:]
+        del self.local_criticNet.saved_actions[:]
+        del self.local_x_y_Net.saved_actions[:]
+        del self.local_node1Net.saved_actions[:]
+        del self.local_node2Net.saved_actions[:]
+
+        if history is not None:
+            history['advantage'].append(advantage.item())
+        return loss.item()

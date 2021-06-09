@@ -12,9 +12,9 @@ from .condition import easy_dev
 from env.gym_barfem import BarFemGym
 
 Saved_mean_std_Action = namedtuple(
-    'SavedAction', ['mean', 'variance'])
+    'SavedAction', ['mean', 'variance', 'x_distribution', 'y_distribution'])
 Saved_Action = namedtuple('SavedAction', ['action', 'value'])
-Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
+Saved_prob_Action = namedtuple('SavedAction', ['log_prob', 'distribution'])
 
 
 def init_weight(size):
@@ -227,7 +227,7 @@ def make_torch_type_for_GCN(nodes_pos, edges_indices, edges_thickness, node_adj)
     return node, edge, node_adj, edge_adj, D_v, D_e, T
 
 
-def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, device, log_dir=None, history=None):
+def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, device, log_dir=None, history=None, entropy=False):
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
     node_num = nodes_pos.shape[0]
     node, edge, node_adj, edge_adj, D_v, D_e, T = make_torch_type_for_GCN(
@@ -285,11 +285,11 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
     # save to action buffer
     criticNet.saved_actions.append(Saved_Action(action, state_value))
     x_y_Net.saved_actions.append(Saved_mean_std_Action(
-        x_y[0][:2], x_y[0][2:]))
+        x_y[0][:2], x_y[0][2:], x_tdist, y_tdist))
     node1Net.saved_actions.append(Saved_prob_Action(
-        node1_categ.log_prob(node1)))
+        node1_categ.log_prob(node1), node1_categ))
     node2Net.saved_actions.append(Saved_prob_Action(
-        node2_categ.log_prob(node2_temp)))
+        node2_categ.log_prob(node2_temp), node2_categ))
 
     if history is not None:
         # historyにログを残す
@@ -301,85 +301,3 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
         history['y_sigma'].append(x_y[0][3].item())
         history['critic_value'].append(state_value.item())
     return action
-
-
-def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Node1_opt, Node2_opt, gamma, log_dir=None, history=None):
-    R = 0
-    GCN_saved_actions = Critic.saved_actions
-    x_y_saved_actions = x_y_Net.saved_actions
-    node1Net_saved_actions = node1Net.saved_actions
-    node2Net_saved_actions = node2Net.saved_actions
-
-    policy_losses = []  # list to save actor (policy) loss
-    value_losses = []  # list to save critic (value) loss
-    returns = []  # list to save the true values
-
-    # calculate the true value using rewards returned from the environment
-    for r in Critic.rewards[:: -1]:
-        # calculate the discounted value
-        R = r + gamma * R
-        returns.insert(0, R)
-    returns = torch.tensor(returns)
-
-    x_y_opt_trigger = False  # advantage>0の場合したときにx_y_optを作動出来るようにする為のトリガー
-    for (action, value), (x_y_mean, x_y_std), node1_prob, node2_prob, R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
-
-        advantage = R - value.item()
-
-        # calculate actor (policy) loss
-        if action["end"]:
-            print("okasii")
-        else:
-            log_probs = torch.cat(
-                [node1_prob.log_prob, node2_prob.log_prob])
-            policy_loss = -torch.mean(log_probs) * advantage
-
-            policy_losses.append(policy_loss)
-            if advantage > 0:
-                x_y_mean_loss = F.l1_loss(torch.from_numpy(
-                    action["new_node"][0]).double(), x_y_mean.double())
-                x_y_var_loss = F.l1_loss(torch.from_numpy(
-                    np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
-                policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
-
-                x_y_opt_trigger = True  # x_y_optのトリガーを起動
-            else:
-                x_y_mean_loss = torch.zeros(1)
-                x_y_var_loss = torch.zeros(1)
-
-        # calculate critic (value) loss using L1 loss
-        value_losses.append(
-            F.l1_loss(value.double(), torch.tensor([[R]]).double()))
-
-    # reset gradients
-    Critic_opt.zero_grad()
-    Node1_opt.zero_grad()
-    Node2_opt.zero_grad()
-    if x_y_opt_trigger:
-        x_y_opt.zero_grad()
-
-    # sum up all the values of policy_losses and value_losses
-    if len(policy_losses) == 0:
-        loss = torch.stack(value_losses).sum()
-    else:
-        loss = torch.stack(policy_losses).sum() + \
-            torch.stack(value_losses).sum()
-
-    # perform backprop
-    loss.backward()
-    Critic_opt.step()
-    Node1_opt.step()
-    Node2_opt.step()
-    if x_y_opt_trigger:
-        x_y_opt.step()
-
-    # reset rewards and action buffer
-    del Critic.rewards[:]
-    del Critic.saved_actions[:]
-    del x_y_Net.saved_actions[:]
-    del node1Net.saved_actions[:]
-    del node2Net.saved_actions[:]
-
-    if history is not None:
-        history['advantage'].append(advantage.item())
-    return loss.item()
