@@ -146,7 +146,6 @@ class Worker(mp.Process):
 
         # perform backprop
         loss.backward()
-
         for lp, gp in zip(self.local_criticNet.parameters(), self.global_criticNet.parameters()):
             gp._grad = lp.grad
         for lp, gp in zip(self.local_node1Net.parameters(), self.global_node1Net.parameters()):
@@ -162,6 +161,12 @@ class Worker(mp.Process):
         self.Node2_opt.step()
         if x_y_opt_trigger:
             self.x_y_opt.step()
+
+        # pull global parameters
+        self.local_criticNet.load_state_dict(self.global_criticNet.state_dict())
+        self.local_x_y_Net.load_state_dict(self.global_x_y_Net.state_dict())
+        self.local_node1Net.load_state_dict(self.global_node1Net.state_dict())
+        self.local_node2Net.load_state_dict(self.global_node2Net.state_dict())
 
         # reset rewards and action buffer
         del self.local_criticNet.rewards[:]

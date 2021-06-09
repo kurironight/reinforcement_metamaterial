@@ -56,7 +56,8 @@ def record(global_ep, global_ep_r, ep_r, res_queue, name):
             global_ep_r.value = ep_r
         else:
             global_ep_r.value = global_ep_r.value * 0.99 + ep_r * 0.01
-    print(ep_r)
+            #global_ep_r.value = ep_r
+    # print(ep_r)
     res_queue.put(global_ep_r.value)
     # ここで成長曲線をprintしている
     print(
