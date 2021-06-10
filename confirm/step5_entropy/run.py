@@ -113,8 +113,6 @@ def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", l
     history = {}
     for i in range(test_num):
         history["{}".format(i)] = actor_gcn_critic_gcn(max_episodes=max_episodes, test_name=os.path.join(test_name, str(i)), log_file=log_file)
-    print([history["{}".format(i)]['result_efficiency']
-           for i in range(test_num)])
     mean = np.stack([history["{}".format(i)]['result_efficiency']
                      for i in range(test_num)])
     std = np.std(mean[:, -1])

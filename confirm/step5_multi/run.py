@@ -286,7 +286,7 @@ class Worker_entropy(Worker):
             loss = torch.stack(value_losses).sum()
         else:
             loss = torch.stack(policy_losses).sum() + \
-                torch.stack(value_losses).sum() + 0.005 * (node_select_entropy_loss + x_y_entropy_loss)
+                torch.stack(value_losses).sum() - 0.005 * (node_select_entropy_loss + x_y_entropy_loss)
 
         # perform backprop
         loss.backward()

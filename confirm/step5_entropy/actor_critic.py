@@ -336,7 +336,7 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
             policy_loss = -torch.mean(log_probs) * advantage
 
             policy_losses.append(policy_loss.flatten())
-            policy_losses.append(node_select_entropy_coeff * node_select_entropy_loss.flatten())
+            policy_losses.append(-node_select_entropy_coeff * node_select_entropy_loss.flatten())
             if advantage > 0:
                 if 4 in action['which_node']:
                     x_y_mean_loss = F.l1_loss(torch.from_numpy(
