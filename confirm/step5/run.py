@@ -126,7 +126,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
             env.input_nodes = [2, 4]
             env.input_vectors = np.array([[1, 0], [0, 1]])
         if 2 in action['which_node'] and 4 in action['which_node']:  # TODO [2,4]を選択しないように学習させる
-            reward = 0
+            reward = np.array([0])
         else:
             reward = env.calculate_simulation()
         criticNet.rewards.append(reward)
