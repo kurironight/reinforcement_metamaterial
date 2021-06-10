@@ -336,16 +336,13 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
 
             policy_losses.append(policy_loss)
             if advantage > 0:
-                x_y_mean_loss = F.l1_loss(torch.from_numpy(
-                    action["new_node"][0]).double(), x_y_mean.double())
-                x_y_var_loss = F.l1_loss(torch.from_numpy(
-                    np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
-                policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
-
-                x_y_opt_trigger = True  # x_y_optのトリガーを起動
-            else:
-                x_y_mean_loss = torch.zeros(1)
-                x_y_var_loss = torch.zeros(1)
+                if 4 in action['which_node']:
+                    x_y_mean_loss = F.l1_loss(torch.from_numpy(
+                        action["new_node"][0]).double(), x_y_mean.double())
+                    x_y_var_loss = F.l1_loss(torch.from_numpy(
+                        np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
+                    policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
+                    x_y_opt_trigger = True  # x_y_optのトリガーを起動
 
         # calculate critic (value) loss using L1 loss
         value_losses.append(
@@ -359,11 +356,8 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
         x_y_opt.zero_grad()
 
     # sum up all the values of policy_losses and value_losses
-    if len(policy_losses) == 0:
-        loss = torch.stack(value_losses).sum()
-    else:
-        loss = torch.stack(policy_losses).sum() + \
-            torch.stack(value_losses).sum()
+    loss = torch.stack(policy_losses).sum() + \
+        torch.stack(value_losses).sum()
 
     # perform backprop
     loss.backward()
