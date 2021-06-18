@@ -7,7 +7,6 @@ from .actor_critic import *
 from env.gym_barfem import BarFemGym
 import numpy as np
 import pickle
-from .examine_possibility_distribution import convert_Vp_to_edgethick
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 

@@ -267,17 +267,8 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
     # HとH1のノード情報をconcat
     emb_graph_cat = torch.cat([non_node1_node_cat, H1_cat], 2)
 
-    # ノード2を求める
-    node2_prob = node2Net(emb_graph_cat)
-    node2_categ = Categorical(node2_prob)
-    node2_temp = node2_categ.sample()
-    if node2_temp >= node1:
-        node2 = node2_temp + 1  # node1分の調整
-    else:
-        node2 = node2_temp
-
     action = {}
-    action['which_node'] = np.array([node1.item(), node2.item()])
+    action['which_node'] = np.array([node1.item(), 4])
     action['end'] = 0
     action['edge_thickness'] = np.array([1])
     action['new_node'] = np.array([[x_action.item(), y_action.item()]])
@@ -288,8 +279,6 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
         x_y[0][:2], x_y[0][2:]))
     node1Net.saved_actions.append(Saved_prob_Action(
         node1_categ.log_prob(node1)))
-    node2Net.saved_actions.append(Saved_prob_Action(
-        node2_categ.log_prob(node2_temp)))
 
     if history is not None:
         # historyにログを残す
@@ -308,7 +297,6 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     GCN_saved_actions = Critic.saved_actions
     x_y_saved_actions = x_y_Net.saved_actions
     node1Net_saved_actions = node1Net.saved_actions
-    node2Net_saved_actions = node2Net.saved_actions
 
     policy_losses = []  # list to save actor (policy) loss
     value_losses = []  # list to save critic (value) loss
@@ -322,7 +310,7 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     returns = torch.tensor(returns)
 
     x_y_opt_trigger = False  # advantage>0の場合したときにx_y_optを作動出来るようにする為のトリガー
-    for (action, value), (x_y_mean, x_y_std), node1_prob, node2_prob, R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
+    for (action, value), (x_y_mean, x_y_std), node1_prob, R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, returns):
 
         advantage = R - value.item()
 
@@ -330,8 +318,7 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
         if action["end"]:
             print("okasii")
         else:
-            log_probs = torch.cat(
-                [node1_prob.log_prob, node2_prob.log_prob])
+            log_probs = node1_prob.log_prob
             policy_loss = -torch.mean(log_probs) * advantage
 
             policy_losses.append(policy_loss)
@@ -351,7 +338,6 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     # reset gradients
     Critic_opt.zero_grad()
     Node1_opt.zero_grad()
-    Node2_opt.zero_grad()
     if x_y_opt_trigger:
         x_y_opt.zero_grad()
 
@@ -363,7 +349,6 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     loss.backward()
     Critic_opt.step()
     Node1_opt.step()
-    Node2_opt.step()
     if x_y_opt_trigger:
         x_y_opt.step()
 
@@ -372,7 +357,6 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     del Critic.saved_actions[:]
     del x_y_Net.saved_actions[:]
     del node1Net.saved_actions[:]
-    del node2Net.saved_actions[:]
 
     if history is not None:
         history['advantage'].append(advantage.item())

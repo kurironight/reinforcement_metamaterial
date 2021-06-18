@@ -11,52 +11,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-def check_maximum_point():
-    # step5において，最も良い値を出力する条件を調査する為の関数
-    resolution = 100
-    node_pos, input_nodes, input_vectors,\
-        output_nodes, output_vectors, frozen_nodes,\
-        edges_indices, edges_thickness, frozen_nodes = easy_dev()
-    env = BarFemGym(node_pos, input_nodes, input_vectors,
-                    output_nodes, output_vectors, frozen_nodes,
-                    edges_indices, edges_thickness, frozen_nodes)
-    env.reset()
-    reward = env.calculate_simulation()
-    rewards = np.zeros((resolution, resolution))
-    max = 0
-    for ix, x in enumerate(tqdm(np.linspace(0, 1, resolution))):
-        for iy, y in enumerate(np.linspace(1, 0, resolution)):
-            env.reset()
-            action = {}
-            action['which_node'] = np.array([3, 4])
-            action['end'] = 0
-            action['edge_thickness'] = np.array([1])
-            action['new_node'] = np.array([[x, y]])
-            next_nodes_pos, _, done, _ = env.step(action)
-            env.input_nodes = [2, 4]
-            env.input_vectors = np.array([[1, 0], [0, 1]])
-            reward = env.calculate_simulation()
-            if max < reward:
-                max = reward
-                max_x = x
-                max_y = y
-                max_reward = reward
-            rewards[iy, ix] = reward
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111)
-
-    im = plt.imshow(rewards, extent=(0, 1, 0, 1))
-    plt.colorbar(im)
-    ax.set_xlabel(r"x", fontsize=20)
-    ax.set_ylabel(r"y", fontsize=20)
-    ax.tick_params(axis='x', labelsize=20)
-    ax.tick_params(axis='y', labelsize=20)
-
-    plt.savefig("distribution.png")
-    print(max_x, max_y)
-    print(max_reward)
-
-
 def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, save_pth=False):
     """Actor-Criticを行う．Actor,CriticはGCN
     Actorの指定できるものは，一つのエッジのみの幅を選択できる．
@@ -76,7 +30,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     history['advantage'] = []
     history['critic_value'] = []
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step4_dist/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:
@@ -102,10 +56,6 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
 
     criticNet = CriticNetwork_GCN(2, 1, 400, 400).to(device).double()
     x_y_Net = X_Y_Actor(2, 1, 400, 400).to(device).double()
-    node1Net = Select_node1_model(2, 1, 400, 400).to(device).double()
-    node2Net = Select_node2_model(400 + 2, 400).to(device).double()  # 400+2における400は，Select_node1_modelのinput3の部分に対応
-    optimizer_node1 = optim.Adam(node1Net.parameters(), lr=lr_actor)
-    optimizer_node2 = optim.Adam(node2Net.parameters(), lr=lr_actor)
     optimizer_xy = optim.Adam(x_y_Net.parameters(), lr=lr_actor)
     optimizer_critic = optim.Adam(
         criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
@@ -114,25 +64,31 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
         if log_file:
             with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
                 print('\nepoch:', episode, file=f)
-        env = BarFemGym(node_pos, input_nodes, input_vectors,
-                        output_nodes, output_vectors, frozen_nodes,
-                        edges_indices, edges_thickness, frozen_nodes)
         env.reset()
         nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
         action = select_action_gcn_critic_gcn(
-            env, criticNet, node1Net, node2Net, x_y_Net, device, log_dir=log_file, history=history)
+            env, criticNet, x_y_Net, device, log_dir=log_file, history=history)
         next_nodes_pos, _, done, _ = env.step(action)
-        if 4 in action['which_node']:
-            env.input_nodes = [2, 4]
-            env.input_vectors = np.array([[1, 0], [0, 1]])
-        if 2 in action['which_node'] and 4 in action['which_node']:  # TODO [2,4]を選択しないように学習させる
-            reward = np.array([0])
-        else:
-            reward = env.calculate_simulation()
+
+        action = {}
+        action['which_node'] = np.array([2, 4])
+        action['end'] = 0
+        action['edge_thickness'] = np.array([1])
+        action['new_node'] = np.array([[0, 1]])
+        next_nodes_pos, _, done, _ = env.step(action)
+
+        action = {}
+        action['which_node'] = np.array([3, 4])
+        action['end'] = 0
+        action['edge_thickness'] = np.array([1])
+        action['new_node'] = np.array([[0, 1]])
+        next_nodes_pos, _, done, _ = env.step(action)
+
+        reward = env.calculate_simulation()
         criticNet.rewards.append(reward)
 
-        loss = finish_episode(criticNet, x_y_Net, node1Net, node2Net,
-                              optimizer_critic, optimizer_xy, optimizer_node1, optimizer_node2, gamma, log_dir=log_file, history=history)
+        loss = finish_episode(criticNet, x_y_Net, optimizer_critic,
+                              optimizer_xy, gamma, log_dir=log_file, history=history)
 
         history['epoch'].append(episode + 1)
         history['result_efficiency'].append(reward)
@@ -152,7 +108,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
 def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", log_file=None):
     """Actor-Criticの５回実験したときの平均グラフを作成する関数"""
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step4_dist/a_gcn_c_gcn_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir, exist_ok=True)
 
@@ -176,6 +132,66 @@ def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", l
 
     plot_efficiency_history(meanhistory, os.path.join(
         log_dir, 'mean_learning_effi_curve.png'))
+
+
+def plot_Vp_mu_sigma_history(history, save_path):  # step4_distの時のmu,sigma,Vp_aの挙動をチェックする為の関数
+    with open("confirm/step4_dist/Vp_edgethick_set/edges_thicknesses.pkl", 'rb') as web:
+        edge_thicknesses = pickle.load(web)
+    with open("confirm/step4_dist/Vp_edgethick_set/rewards.pkl", 'rb') as web:
+        rewards = pickle.load(web)
+        rewards = np.array(rewards).flatten()
+
+    epochs = history['epoch']
+    a_mean = np.array(history['a_mean'])
+    a_sigma = np.array(history['a_sigma'])
+    advantage = np.array(history['advantage'])
+    a = np.array(history['a'])
+    Vp_a = np.array([convert_Vp_to_edgethick(edge_thicknesses, rewards, Vp) for Vp in np.array(np.array(history['critic_value']))])
+    result_efficiency = np.array(history['result_efficiency'])
+    epochs = np.array(epochs)
+    result_efficiency = np.array(result_efficiency)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.fill_between(epochs, a_mean + a_sigma, a_mean - a_sigma, facecolor='y', alpha=0.5)
+
+    ax.plot(epochs, Vp_a, label='Vp_a')
+    ax.plot(epochs, a_mean, label='a_mean')
+    ax.plot(epochs, a, label='a')
+    ax.plot(epochs, advantage, label='advantage')
+    # ax.set_xlim(0, 8000)
+    ax.set_xlabel('epoch')
+    # ax.set_ylim(0.15, 0.32)
+    ax.legend()
+    ax.set_title("edgethick curve")
+    plt.savefig(save_path)
+    plt.close()
+
+
+def plot_Vp_efficiency_history(history, save_path):
+    with open("confirm/step4_dist/Vp_edgethick_set/edges_thicknesses.pkl", 'rb') as web:
+        edge_thicknesses = pickle.load(web)
+    with open("confirm/step4_dist/Vp_edgethick_set/rewards.pkl", 'rb') as web:
+        rewards = pickle.load(web)
+        rewards = np.array(rewards).flatten()
+
+    epochs = history['epoch']
+    Vp = np.array(history['critic_value'])
+    result_efficiency = np.array(history['result_efficiency'])
+    epochs = np.array(epochs)
+    result_efficiency = np.array(result_efficiency)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(epochs, Vp, label='Vp')
+    ax.plot(epochs, result_efficiency, label='result_efficiency')
+    ax.set_xlim(6000, 10000)
+    ax.set_xlabel('epoch')
+    ax.set_ylim(0.8, 1.3)
+    ax.legend()
+    ax.set_title("edgethick curve")
+    plt.savefig(save_path)
+    plt.close()
 
 
 def save_model(criticNet, edgethickNet, log_dir, save_name="Good"):
@@ -212,7 +228,7 @@ def load_actor_gcn_critic_gcn(load_dir, load_epoch, max_episodes=5000, test_name
         for key in history.keys():
             history[key] = history[key][:load_epoch]
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step4_dist/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:

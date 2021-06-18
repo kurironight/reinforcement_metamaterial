@@ -12,9 +12,9 @@ from .condition import easy_dev
 from env.gym_barfem import BarFemGym
 
 Saved_mean_std_Action = namedtuple(
-    'SavedAction', ['mean', 'variance'])
+    'SavedAction', ['mean', 'variance', 'x_distribution', 'y_distribution'])
 Saved_Action = namedtuple('SavedAction', ['action', 'value'])
-Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
+Saved_prob_Action = namedtuple('SavedAction', ['log_prob', 'distribution'])
 
 
 def init_weight(size):
@@ -285,11 +285,11 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
     # save to action buffer
     criticNet.saved_actions.append(Saved_Action(action, state_value))
     x_y_Net.saved_actions.append(Saved_mean_std_Action(
-        x_y[0][:2], x_y[0][2:]))
+        x_y[0][:2], x_y[0][2:], x_tdist, y_tdist))
     node1Net.saved_actions.append(Saved_prob_Action(
-        node1_categ.log_prob(node1)))
+        node1_categ.log_prob(node1), node1_categ))
     node2Net.saved_actions.append(Saved_prob_Action(
-        node2_categ.log_prob(node2_temp)))
+        node2_categ.log_prob(node2_temp), node2_categ))
 
     if history is not None:
         # historyにログを残す
@@ -303,7 +303,8 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
     return action
 
 
-def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Node1_opt, Node2_opt, gamma, log_dir=None, history=None):
+def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Node1_opt, Node2_opt,
+                   gamma, log_dir=None, history=None, node_select_entropy_coeff=0.005, x_y_entropy_coeff=0.05):
     R = 0
     GCN_saved_actions = Critic.saved_actions
     x_y_saved_actions = x_y_Net.saved_actions
@@ -322,7 +323,7 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     returns = torch.tensor(returns)
 
     x_y_opt_trigger = False  # advantage>0の場合したときにx_y_optを作動出来るようにする為のトリガー
-    for (action, value), (x_y_mean, x_y_std), node1_prob, node2_prob, R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
+    for (action, value), (x_y_mean, x_y_std, x_dist, y_dist), (node1_prob, node1_dist), (node2_prob, node2_dist), R in zip(GCN_saved_actions, x_y_saved_actions, node1Net_saved_actions, node2Net_saved_actions, returns):
 
         advantage = R - value.item()
 
@@ -330,18 +331,21 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
         if action["end"]:
             print("okasii")
         else:
-            log_probs = torch.cat(
-                [node1_prob.log_prob, node2_prob.log_prob])
+            log_probs = torch.cat([node1_prob, node2_prob])
+            node_select_entropy_loss = node1_dist.entropy() + node2_dist.entropy()
             policy_loss = -torch.mean(log_probs) * advantage
 
-            policy_losses.append(policy_loss)
+            policy_losses.append(policy_loss.flatten())
+            policy_losses.append(-node_select_entropy_coeff * node_select_entropy_loss.flatten())
             if advantage > 0:
                 if 4 in action['which_node']:
                     x_y_mean_loss = F.l1_loss(torch.from_numpy(
                         action["new_node"][0]).double(), x_y_mean.double())
                     x_y_var_loss = F.l1_loss(torch.from_numpy(
                         np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
-                    policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
+                    x_y_entropy_loss = x_dist.entropy().flatten() + y_dist.entropy().flatten()
+                    x_y_loss = (x_y_mean_loss + x_y_var_loss) * advantage
+                    policy_losses.append(x_y_loss.flatten())
                     x_y_opt_trigger = True  # x_y_optのトリガーを起動
 
         # calculate critic (value) loss using L1 loss

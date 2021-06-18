@@ -49,6 +49,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     assert mode == 'displacement' or mode == 'force', 'modeは"displacement"か"force"'
     assert np.unique(nodes_pos, axis=0).shape[0] == nodes_pos.shape[0], "同じ座標を示すノードがnode_posに含まれている"
     assert np.unique(edges_indices, axis=0).shape[0] == edges_indices.shape[0], "同じedge_indiceがedge_indicesに含まれている"
+    assert np.max(input_nodes) < node_num, "input_nodesに含まれる指定ノードがノード数を超えている"
+    assert np.max(frozen_nodes) < node_num, "frozen_nodesに含まれる指定ノードがノード数を超えている"
 
     # doubleのポインタのポインタ型を用意
     _DOUBLE_PP = ndpointer(dtype=np.uintp, ndim=1, flags='C')

@@ -11,52 +11,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-def check_maximum_point():
-    # step5において，最も良い値を出力する条件を調査する為の関数
-    resolution = 100
-    node_pos, input_nodes, input_vectors,\
-        output_nodes, output_vectors, frozen_nodes,\
-        edges_indices, edges_thickness, frozen_nodes = easy_dev()
-    env = BarFemGym(node_pos, input_nodes, input_vectors,
-                    output_nodes, output_vectors, frozen_nodes,
-                    edges_indices, edges_thickness, frozen_nodes)
-    env.reset()
-    reward = env.calculate_simulation()
-    rewards = np.zeros((resolution, resolution))
-    max = 0
-    for ix, x in enumerate(tqdm(np.linspace(0, 1, resolution))):
-        for iy, y in enumerate(np.linspace(1, 0, resolution)):
-            env.reset()
-            action = {}
-            action['which_node'] = np.array([3, 4])
-            action['end'] = 0
-            action['edge_thickness'] = np.array([1])
-            action['new_node'] = np.array([[x, y]])
-            next_nodes_pos, _, done, _ = env.step(action)
-            env.input_nodes = [2, 4]
-            env.input_vectors = np.array([[1, 0], [0, 1]])
-            reward = env.calculate_simulation()
-            if max < reward:
-                max = reward
-                max_x = x
-                max_y = y
-                max_reward = reward
-            rewards[iy, ix] = reward
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111)
-
-    im = plt.imshow(rewards, extent=(0, 1, 0, 1))
-    plt.colorbar(im)
-    ax.set_xlabel(r"x", fontsize=20)
-    ax.set_ylabel(r"y", fontsize=20)
-    ax.tick_params(axis='x', labelsize=20)
-    ax.tick_params(axis='y', labelsize=20)
-
-    plt.savefig("distribution.png")
-    print(max_x, max_y)
-    print(max_reward)
-
-
 def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, save_pth=False):
     """Actor-Criticを行う．Actor,CriticはGCN
     Actorの指定できるものは，一つのエッジのみの幅を選択できる．
@@ -76,7 +30,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     history['advantage'] = []
     history['critic_value'] = []
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_entropy/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:
@@ -152,14 +106,13 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
 def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", log_file=None):
     """Actor-Criticの５回実験したときの平均グラフを作成する関数"""
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_entropy/a_gcn_c_gcn_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir, exist_ok=True)
 
     history = {}
     for i in range(test_num):
         history["{}".format(i)] = actor_gcn_critic_gcn(max_episodes=max_episodes, test_name=os.path.join(test_name, str(i)), log_file=log_file)
-
     mean = np.stack([history["{}".format(i)]['result_efficiency']
                      for i in range(test_num)])
     std = np.std(mean[:, -1])
@@ -212,7 +165,7 @@ def load_actor_gcn_critic_gcn(load_dir, load_epoch, max_episodes=5000, test_name
         for key in history.keys():
             history[key] = history[key][:load_epoch]
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_entropy/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:

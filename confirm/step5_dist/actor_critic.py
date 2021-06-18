@@ -335,14 +335,15 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
             policy_loss = -torch.mean(log_probs) * advantage
 
             policy_losses.append(policy_loss)
-            if advantage > 0:
-                if 4 in action['which_node']:
-                    x_y_mean_loss = F.l1_loss(torch.from_numpy(
-                        action["new_node"][0]).double(), x_y_mean.double())
-                    x_y_var_loss = F.l1_loss(torch.from_numpy(
-                        np.abs(action["new_node"][0] - x_y_mean.to('cpu').detach().numpy().copy())), x_y_std.double())
-                    policy_losses.append((x_y_mean_loss + x_y_var_loss) * advantage)
-                    x_y_opt_trigger = True  # x_y_optのトリガーを起動
+            if 4 in action['which_node']:
+                x_tdist = tdist.Normal(
+                    x_y_mean[0], x_y_std[0])
+                y_tdist = tdist.Normal(
+                    x_y_mean[1], x_y_std[1])
+                x_log_prob = x_tdist.log_prob(action["new_node"][0][0])
+                y_log_prob = y_tdist.log_prob(action["new_node"][0][1])
+                policy_losses.append(-(x_log_prob + y_log_prob) / 2 * advantage)  # 選択部分のpolicy_lossと同じようにする為，平均化として2で割ることを適用
+                x_y_opt_trigger = True  # x_y_optのトリガーを起動
 
         # calculate critic (value) loss using L1 loss
         value_losses.append(

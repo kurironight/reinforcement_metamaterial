@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 
 def check_maximum_point():
-    # step5において，最も良い値を出力する条件を調査する為の関数
+    # step5_priorにおいて，最も良い値を出力する条件を調査する為の関数
     resolution = 100
     node_pos, input_nodes, input_vectors,\
         output_nodes, output_vectors, frozen_nodes,\
@@ -76,7 +76,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     history['advantage'] = []
     history['critic_value'] = []
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_prior/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:
@@ -152,7 +152,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
 def actor_gcn_critic_gcn_mean(test_num=5, max_episodes=5000, test_name="test", log_file=None):
     """Actor-Criticの５回実験したときの平均グラフを作成する関数"""
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_prior/a_gcn_c_gcn_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir, exist_ok=True)
 
@@ -212,7 +212,7 @@ def load_actor_gcn_critic_gcn(load_dir, load_epoch, max_episodes=5000, test_name
         for key in history.keys():
             history[key] = history[key][:load_epoch]
 
-    log_dir = "confirm/step5/a_gcn_c_gcn_results/{}".format(test_name)
+    log_dir = "confirm/step5_prior/a_gcn_c_gcn_results/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     if log_file:
