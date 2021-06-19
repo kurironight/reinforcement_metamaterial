@@ -10,6 +10,8 @@ from .actor_critic import *
 from env.gym_barfem import BarFemGym
 import numpy as np
 from confirm.step5_multi.actor_critic import Select_node1_model, Select_node2_model, CriticNetwork_GCN, Edgethick_Actor, X_Y_Actor
+from confirm.step5_multi.shared_adam import SharedAdam
+import matplotlib.pyplot as plt
 
 
 class Net(nn.Module):
@@ -322,3 +324,52 @@ class Worker_entropy(Worker):
         if history is not None:
             history['advantage'].append(advantage.item())
         return loss.item()
+
+
+def actor_gcn_critic_gcn():
+    os.environ["OMP_NUM_THREADS"] = "1"
+    torch.set_num_threads(1)  # これがないとデッドロックを起こす
+
+    lr_actor = 1e-4
+    lr_critic = 1e-3
+    weight_decay = 1e-2
+    total_episodes = 50
+    process_num = mp.cpu_count()
+
+    device = torch.device('cpu')
+
+    criticNet = CriticNetwork_GCN(2, 1, 400, 400).to(device).double().share_memory()
+    x_y_Net = X_Y_Actor(2, 1, 400, 400).to(device).double().share_memory()
+    node1Net = Select_node1_model(2, 1, 400, 400).to(device).double().share_memory()
+    node2Net = Select_node2_model(400 + 2, 400).to(device).double().share_memory()
+
+    optimizer_node1 = SharedAdam(node1Net.parameters(), lr=lr_actor)
+    optimizer_node2 = SharedAdam(node2Net.parameters(), lr=lr_actor)
+    optimizer_xy = SharedAdam(x_y_Net.parameters(), lr=lr_actor)
+    optimizer_critic = SharedAdam(
+        criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
+
+    global_ep, global_ep_r, res_queue = mp.Value(
+        'i', 0), mp.Value('d', 0.), mp.Queue()  # global_ep: 全体のエピソード数，
+    # global_ep_r: 単なる各プロセスで終了したときの値の平均成長度合．
+    # Queueは，先にputした順に，get()関数を用いて実行することができる．
+    # res_queue: global_ep_rを格納したもの．plot用に使う
+
+    # parallel training
+    workers = [Worker(criticNet, x_y_Net, node1Net, node2Net,
+                      optimizer_critic, optimizer_xy, optimizer_node1, optimizer_node2,
+                      global_ep, global_ep_r, res_queue, i, total_episodes=total_episodes) for i in range(process_num)]
+    [w.start() for w in workers]
+    res = []                    # record episode reward to plot
+    while True:
+        r = res_queue.get()
+        if r is not None:
+            res.append(r)
+        else:
+            break
+    [w.join() for w in workers]
+
+    plt.plot(res)
+    plt.ylabel('Moving average ep reward')
+    plt.xlabel('Step')
+    plt.savefig("img.png")
