@@ -1,5 +1,3 @@
-from platypus import NSGAII, Problem, nondominated, Integer, Real, \
-    CompoundOperator, SBX, HUX, PM, BitFlip
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -91,7 +89,7 @@ def run(parent, generation, save_interval, save_dir="GA/result"):
         return float(efficiency)
 
     node_num = 85
-    # parent = (node_num * 2 + int(node_num * (node_num - 1) / 2) * 2)  # 本来ならこれの10倍
+    parent = (node_num * 2 + int(node_num * (node_num - 1) / 2) * 2)  # 本来ならこれの10倍
 
     PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
     os.makedirs(PATH, exist_ok=True)
