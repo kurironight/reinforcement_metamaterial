@@ -33,8 +33,9 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
 
     # エッジ部分の設定
     for i, edges_indice in enumerate(edges_indices):
+        b = 0.2  # 奥行
         h = edges_thickness[i]
-        mapdl.r(i + 1, h, (h * h**2) / 12, h, 0)  # A,I,height=y方向の長さ,SHEARZ
+        mapdl.r(i + 1, b * h, b * (h * h**2) / 12, h, 0)  # A,I,height=y方向の長さ,SHEARZ
         mapdl.real(i + 1)
         mapdl.e(edges_indice[0] + 1, edges_indice[1] + 1)
 
