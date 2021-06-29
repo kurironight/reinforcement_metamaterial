@@ -12,7 +12,7 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
 
     # C言語を用いたbarfem
     displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
-                          input_vectors, frozen_nodes, tmax, eps, mode="force")
+                          input_vectors, frozen_nodes, mode="force", tmax=tmax, eps=eps)
 
     # APDLの設定
     mapdl = launch_mapdl()
