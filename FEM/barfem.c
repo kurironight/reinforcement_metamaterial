@@ -160,13 +160,15 @@ void matrix_transpose(double c[][6], double a[][6])
     return;
 }
 
-void get_K_element_matrix(double K_e[6][6], double node[2][2], double A)
+void get_K_element_matrix(double K_e[6][6], double node[2][2], double h)
 {
     double vector[2];
     double L, sin, cos, coef;
     double T[6][6], K_zero[6][6], T_trans[6][6], K_e_ref[6][6];
     double E = 1.0; //弾性率
-    double Iz_A = A * A / 12;
+    double b=0.2; //奥行
+    double A=b*h;
+    double Iz_A = h * h / 12;
 
     int i, j;
 
