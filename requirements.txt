@@ -1,59 +1,55 @@
-alembic==1.5.6
-attrs==20.3.0
-autopep8==1.5.4
-certifi==2020.12.5
-cffi @ file:///tmp/build/80754af9/cffi_1606255099073/work
-cliff==3.7.0
-cloudpickle==1.6.0
-cmaes==0.8.2
-cmd2==1.5.0
-colorama==0.4.4
-colorlog==4.7.2
-cycler==0.10.0
-decorator==4.4.2
-flake8==3.8.4
-future==0.18.2
-gym==0.18.0
-importlib-metadata==3.3.0
-joblib==1.0.1
-kiwisolver==1.3.1
-Mako==1.1.4
-MarkupSafe==1.1.1
-matplotlib==3.3.3
-mccabe==0.6.1
-mkl-fft==1.2.0
-mkl-random==1.1.1
-mkl-service==2.3.0
-networkx==2.5
-numpy==1.19.4
-olefile==0.46
-opencv-python==4.5.1.48
-optuna==2.5.0
-ordered-set==4.0.2
-packaging==20.9
-pandas==1.2.0
-pbr==5.5.1
-pep8==1.7.1
-Pillow==7.2.0
-prettytable==2.1.0
-pycodestyle==2.6.0
-pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
-pyflakes==2.2.0
-pyglet==1.5.0
-pyparsing==2.4.7
-pyperclip==1.8.2
-python-dateutil==2.8.1
-python-editor==1.0.4
-pytz==2020.5
-PyYAML==5.4.1
-scipy==1.6.0
-six @ file:///tmp/build/80754af9/six_1605205313296/work
-SQLAlchemy==1.3.23
-stevedore==3.3.0
-toml==0.10.2
-torch==1.1.0
-torchvision==0.3.0
-tqdm==4.55.0
-typing-extensions==3.7.4.3
-wcwidth==0.2.5
-zipp==3.4.0
+# metamech/metamech/ML_models.py: 2
+# metamech/metamech/bayesian_metropolis.py: 18
+# metamech/metamech/images.py: 19
+keras == 2.3.1
+
+# metamech/metamech/metropolis.py: 24,25,26
+# metamech/metamech/viz.py: 7,8,14,15,16,17,18,19,24
+matplotlib == 3.1.3
+
+# metamech/metamech/actuator.py: 19
+# metamech/metamech/bayesian_metropolis.py: 15
+# metamech/metamech/images.py: 13
+# metamech/metamech/io.py: 13
+# metamech/metamech/lattice.py: 15
+# metamech/metamech/metropolis.py: 9
+# metamech/metamech/minimize.py: 2
+# metamech/metamech/node.py: 17
+# metamech/metamech/spring.py: 6
+# metamech/metamech/utils.py: 1,2
+# metamech/metamech/viz.py: 23
+# metamech/tests/test_actuator.py: 8
+# metamech/tests/test_io.py: 14
+# metamech/tests/test_lattice.py: 7
+# metamech/tests/test_metropolis.py: 5
+# metamech/tests/test_metropolis/manual_reproducibility_test.py: 5
+# metamech/tests/test_minimize.py: 10
+# metamech/tests/test_node.py: 8
+# metamech/tests/test_spring.py: 11
+# metamech/tests/test_utils.py: 9
+numpy == 1.18.1
+
+# metamech/metamech/lattice.py: 20
+# metamech/metamech/metropolis.py: 18
+# metamech/metamech/node.py: 19
+# metamech/metamech/spring.py: 13
+ordered_set == 4.0.1
+
+# metamech/metamech/bayesian_metropolis.py: 16
+# metamech/metamech/metropolis.py: 20,21
+pandas == 1.0.3
+
+# metamech/tests/test_actuator.py: 9
+# metamech/tests/test_io.py: 9
+# metamech/tests/test_lattice.py: 6
+# metamech/tests/test_metropolis.py: 10
+# metamech/tests/test_minimize.py: 11
+# metamech/tests/test_node.py: 7
+# metamech/tests/test_spring.py: 6
+pytest == 5.4.1
+
+# metamech/metamech/images.py: 14,15
+scipy == 1.4.1
+
+# metamech/metamech/metropolis.py: 10
+tqdm == 4.42.1
