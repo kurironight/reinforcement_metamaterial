@@ -1,11 +1,12 @@
 from platypus import NSGAII, DTLZ2, ProcessPoolEvaluator
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
-    CompoundOperator, SBX, HUX, PM, BitFlip
+    CompoundOperator, SBX, HUX, UM, BitFlip, GeneticAlgorithm
 from GA.GA_class import Barfem_GA
 import time
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from tqdm import tqdm
 
 """
 if __name__ == "__main__":
@@ -25,12 +26,12 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # define the problem definition
     save_dir = "GA/result"
-    node_num = 15
+    node_num = 85
     parent = (node_num * 2 + int(node_num * (node_num - 1) / 2) * 2)
-    generation = 10
-    save_interval = 5
+    generation = 5000
+    save_interval = 10
 
-    PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
+    PATH = os.path.join(save_dir, "parent_{}_gen_{}_3".format(parent, generation))
     os.makedirs(PATH, exist_ok=False)
 
     problem = Barfem_GA(node_num)
@@ -40,13 +41,17 @@ if __name__ == "__main__":
     start = time.time()
     # instantiate the optimization algorithm to run in parallel
     with ProcessPoolEvaluator(8) as evaluator:
-        algorithm = NSGAII(problem, population_size=parent,
-                           variator=CompoundOperator(SBX(), HUX(), PM(), BitFlip()), evaluator=evaluator)
-        for i in range(generation):
+        #algorithm = NSGAII(problem, population_size=parent, variator=CompoundOperator(SBX(), HUX(), PM(), BitFlip()), evaluator=evaluator)
+        algorithm = GeneticAlgorithm(problem, population_size=parent, offspring_size=parent,
+                                     variator=CompoundOperator(SBX(), HUX(), UM(), BitFlip()), evaluator=evaluator)
+        for i in tqdm(range(generation)):
             algorithm.step()
+            """
             nondominated_solutions = nondominated(algorithm.result)
             efficiency_results = [s.objectives[0] for s in nondominated_solutions]
             max_efficiency = max(efficiency_results)
+            """
+            max_efficiency = algorithm.fittest.objectives[0]
             history.append(max_efficiency)
 
             epochs = np.arange(i + 1) + 1
@@ -63,8 +68,11 @@ if __name__ == "__main__":
 
             if algorithm.nfe / parent % save_interval == 0:
                 save_dir = os.path.join(PATH, str(i + 1))
+                """
                 max_index = efficiency_results.index(max_efficiency)
                 max_solution = nondominated_solutions[max_index]
+                """
+                max_solution = algorithm.fittest
 
                 vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
                 gene_nodes_pos, gene_edges_thickness, gene_adj_element = problem.convert_var_to_arg(vars)
