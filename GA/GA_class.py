@@ -1,3 +1,4 @@
+from env.gym_metamech import MAX_EDGE_THICKNESS
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
     CompoundOperator, SBX, HUX, PM, BitFlip
 from .condition import condition
@@ -11,7 +12,7 @@ import os
 
 class Barfem_GA(Problem):
 
-    def __init__(self, node_num):
+    def __init__(self, node_num, max_edge_thickness=0.4):
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
             = make_main_node_edge_info(*condition(), condition_edge_thickness=0.2)
@@ -23,9 +24,10 @@ class Barfem_GA(Problem):
         self.gene_edge_thickness_num = int(node_num * (node_num - 1) / 2)
         self.gene_edge_indices_num = self.gene_edge_thickness_num
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
+        self.max_edge_thickness = max_edge_thickness
 
         self.directions[:] = Problem.MAXIMIZE
-        self.types[0:self.gene_node_pos_num] = Real(0, 1)
+        self.types[0:self.gene_node_pos_num] = Real(0, self.max_edge_thickness)
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(0.1, 1)  # バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Integer(0, 1)
