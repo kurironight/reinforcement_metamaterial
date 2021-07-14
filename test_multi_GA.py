@@ -31,7 +31,7 @@ if __name__ == "__main__":
     generation = 5000
     save_interval = 10
 
-    PATH = os.path.join(save_dir, "parent_{}_gen_{}_3".format(parent, generation))
+    PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
     os.makedirs(PATH, exist_ok=False)
 
     problem = Barfem_GA(node_num)
