@@ -12,10 +12,10 @@ import os
 
 class Barfem_GA(Problem):
 
-    def __init__(self, node_num, max_edge_thickness=1 / 8 * 0.1):
+    def __init__(self, node_num, max_edge_thickness=1 / 8 * 0.01):
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
-            = make_main_node_edge_info(*condition(), condition_edge_thickness=1 / 8 * 0.1)  # スレンダー比を考慮した値にした
+            = make_main_node_edge_info(*condition(), condition_edge_thickness=1 / 8 * 0.05)  # スレンダー比を考慮し，長さ方向に対して1/20の値の幅にした
 
         self.node_num = node_num
         condition_node_num = self.condition_nodes_pos.shape[0]
@@ -29,10 +29,10 @@ class Barfem_GA(Problem):
         assert min_edge_thickness < self.max_edge_thickness, "max_edge_thickness should be bigger than min_edge_thickness {}".format(max_edge_thickness)
 
         self.directions[:] = Problem.MAXIMIZE
-        self.types[0:self.gene_node_pos_num] = Real(0, 1)
-        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(0.1, self.max_edge_thickness)  # バグが無いように0.1にする
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
-            Integer(0, 1)
+            Integer(0, 1)  # 隣接行列を指す
 
     def evaluate(self, solution):
         solution.objectives[:] = [self.objective(solution)]
