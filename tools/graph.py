@@ -11,14 +11,14 @@ def convert_edge_indices_to_adj(edges_indices, size=False):
     return:
         node_num*node_num or size*size
     """
-    node_num = edges_indices.max()+1
+    node_num = edges_indices.max() + 1
     node_adj = np.zeros((node_num, node_num), dtype=int)
     node_adj[(edges_indices[:, 0], edges_indices[:, 1])] = 1
     node_adj[(edges_indices[:, 1], edges_indices[:, 0])] = 1
 
     if size:
         node_adj = np.pad(
-            node_adj, ((0, size-node_num), (0, size-node_num)))
+            node_adj, ((0, size - node_num), (0, size - node_num)))
 
     return node_adj
 
@@ -51,7 +51,7 @@ def make_T_matrix(edges_indices):
     Returns:
         T(np.array): node_num*edge_num
     """
-    node_num = edges_indices.max()+1
+    node_num = edges_indices.max() + 1
     edge_num = edges_indices.shape[0]
     T = np.zeros((edge_num, node_num), dtype=np.int32)
     for i, edge_indice in enumerate(edges_indices):
@@ -101,5 +101,47 @@ def make_D_matrix(adj):
     Returns:
         D (np.array): n*n
     """
-    D = np.diag(np.sum(adj, axis=0)+1)  # +1は単位行列Iを考慮したもの
+    D = np.diag(np.sum(adj, axis=0) + 1)  # +1は単位行列Iを考慮したもの
     return D
+
+
+def calc_cross_point(pointA, pointB, pointC, pointD):
+    """二つの線分の交差点を求める関数．交差している場合，True．交差していない場合，Falseを出力する．
+
+    Args:
+        pointA (np.array): 線分１の始点
+        pointB (np.array): 線分１の終点
+        pointC (np.array): 線分２の始点
+        pointD (np.array): 線分２の終点
+
+    Returns:
+        [bool,np.array]: 交差しているか，そしてその交点．交差していない場合，[0,0]を返す．
+    """
+    cross_point = np.array([0.0, 0.0])
+    bunbo = (pointB[0] - pointA[0]) * (pointD[1] - pointC[1]) - (pointB[1] - pointA[1]) * (pointD[0] - pointC[0])
+
+    # 直線が平行な場合
+    if (bunbo == 0):
+        return False, cross_point
+
+    vectorAC = ((pointC[0] - pointA[0]), (pointC[1] - pointA[1]))
+    r = ((pointD[1] - pointC[1]) * vectorAC[0] - (pointD[0] - pointC[0]) * vectorAC[1]) / bunbo
+    s = ((pointB[1] - pointA[1]) * vectorAC[0] - (pointB[0] - pointA[0]) * vectorAC[1]) / bunbo
+
+    if (0 <= r and r <= 1) and (0 <= s and s <= 1):
+        # rを使った計算の場合
+        distance = ((pointB[0] - pointA[0]) * r, (pointB[1] - pointA[1]) * r)
+        cross_point = (pointA[0] + distance[0], pointA[1] + distance[1])
+        return True, cross_point
+    else:
+        return False, cross_point
+
+
+"""
+if __name__ == "__main__":
+    pointA = np.array([0, 0])
+    pointB = np.array([0, 1])
+    pointC = np.array([-1, 0])
+    pointD = np.array([-1, 1])
+    print(calc_cross_point(pointA, pointB, pointC, pointD))
+"""

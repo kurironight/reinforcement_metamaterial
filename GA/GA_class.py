@@ -3,6 +3,7 @@ from platypus import NSGAII, Problem, nondominated, Integer, Real, \
     CompoundOperator, SBX, HUX, PM, BitFlip
 from .condition import condition
 from tools.lattice_preprocess import make_main_node_edge_info
+from tools.graph import calc_cross_point
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
