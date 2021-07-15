@@ -128,7 +128,7 @@ def calc_cross_point(pointA, pointB, pointC, pointD):
     r = ((pointD[1] - pointC[1]) * vectorAC[0] - (pointD[0] - pointC[0]) * vectorAC[1]) / bunbo
     s = ((pointB[1] - pointA[1]) * vectorAC[0] - (pointB[0] - pointA[0]) * vectorAC[1]) / bunbo
 
-    if (0 <= r and r <= 1) and (0 <= s and s <= 1):
+    if (0 < r and r < 1) and (0 < s and s < 1):
         # rを使った計算の場合
         distance = ((pointB[0] - pointA[0]) * r, (pointB[1] - pointA[1]) * r)
         cross_point = (pointA[0] + distance[0], pointA[1] + distance[1])
