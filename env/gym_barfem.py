@@ -62,7 +62,7 @@ class BarFemGym(MetamechGym):
             display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
         """
 
-        edge_size = 15  # 図示する時のエッジの太さ
+        edge_size = 30  # 図示する時のエッジの太さ
         marker_size = 40  # 図示するときのノードのサイズ
         character_size = 20  # ノードの文字のサイズ
 
