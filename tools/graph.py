@@ -137,11 +137,36 @@ def calc_cross_point(pointA, pointB, pointC, pointD):
         return False, cross_point
 
 
+def calc_corresp_line(pointA, pointB, pointC, pointD):
+    """二つの線分が直線的に一致しているかを求める関数．一致している場合，True．一致していない場合，Falseを出力する．
+
+    Args:
+        pointA (np.array): 線分１の始点
+        pointB (np.array): 線分１の終点
+        pointC (np.array): 線分２の始点
+        pointD (np.array): 線分２の終点
+
+    Returns:
+        [bool,np.array]: 一致しているか，一致していないかを判定する．
+    """
+    bunbo = (pointB[0] - pointA[0]) * (pointD[1] - pointC[1]) - (pointB[1] - pointA[1]) * (pointD[0] - pointC[0])
+
+    vectorAC = ((pointC[0] - pointA[0]), (pointC[1] - pointA[1]))
+    r = ((pointD[1] - pointC[1]) * vectorAC[0] - (pointD[0] - pointC[0]) * vectorAC[1])  # 分母
+    s = ((pointB[1] - pointA[1]) * vectorAC[0] - (pointB[0] - pointA[0]) * vectorAC[1])  # 分母
+
+    # 直線が平行な場合
+    if (bunbo == 0 and r == 0 and s == 0):
+        return True
+    else:
+        return False
+
+
 """
 if __name__ == "__main__":
     pointA = np.array([0, 0])
-    pointB = np.array([0, 1])
-    pointC = np.array([-1, 0])
-    pointD = np.array([-1, 1])
-    print(calc_cross_point(pointA, pointB, pointC, pointD))
+    pointB = np.array([-1, 1])
+    pointC = np.array([0, 2])
+    pointD = np.array([-2, 4])
+    print(calc_corresp_line(pointA, pointB, pointC, pointD))
 """
