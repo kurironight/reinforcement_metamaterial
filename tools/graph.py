@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 
 def convert_edge_indices_to_adj(edges_indices, size=False):
@@ -162,6 +163,92 @@ def calc_corresp_line(pointA, pointB, pointC, pointD):
         return False
 
 
+def separate_same_slope_group(nodes_pos, edges_indices):
+    edge_points = [[nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]] for edges_indice in edges_indices]
+    return edge_points
+
+
+def make_same_slope_group_edge(nodes_pos, edges_indices):
+    trigger = 1
+    while trigger == 1:
+        edge_points = [np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices]
+        combinations = [pair for pair in itertools.combinations(edge_points, 2)]
+        edges_indices_combinations = [pair for pair in itertools.combinations(edges_indices, 2)]
+        new_edge_indices = []
+        erased_edge_indices = []
+
+        for combination, edges_indices_combination in zip(combinations, edges_indices_combinations):
+            # 通常はx座標のみでエッジの重なりパターンを判断する
+            refer_index = 0 if combination[0][0][0] != combination[0][1][0] else 1
+            # 最小の参考値を持っているエッジをエッジ1とする
+            edge1_index = 0 if min(combination[0][:, refer_index]) <= min(combination[1][:, refer_index]) else 1
+            edge2_index = 1 - edge1_index
+            edge1 = combination[edge1_index][:, refer_index]
+            edge2 = combination[edge2_index][:, refer_index]
+
+            if max(edge1) < min(edge2):  # pattern1
+                # print("pattern1")
+                new_edge_indices.append(edges_indices_combination[0])
+                new_edge_indices.append(edges_indices_combination[1])
+            elif max(edge1) == min(edge2):  # pattern5
+                # print("pattern5")
+                new_edge_indices.append(edges_indices_combination[edge1_index])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                if edges_indices_combination[edge1_index][np.argmax(edge1)] != edges_indices_combination[edge2_index][np.argmin(edge2)]:
+                    erased_edge_indices.append(edges_indices_combination[edge2_index])
+            elif max(edge1) == max(edge2) and min(edge1) != min(edge2):  # pattern6
+                # print("pattern6")
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                erased_edge_indices.append(edges_indices_combination[edge1_index])
+                if edges_indices_combination[edge1_index][np.argmax(edge1)] != edges_indices_combination[edge2_index][np.argmax(edge2)]:
+                    erased_edge_indices.append(edges_indices_combination[edge2_index])
+            elif max(edge1) != max(edge2) and min(edge1) == min(edge2):  # pattern7
+                # redefine edge1 and edge2 rely to the max num
+                edge1_index = 0 if max(edge1) < max(edge2) else 1
+                edge2_index = 1 - edge1_index
+                edge1 = combination[edge1_index][:, refer_index]
+                edge2 = combination[edge2_index][:, refer_index]
+                # print("pattern7")
+                new_edge_indices.append(edges_indices_combination[edge1_index])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                erased_edge_indices.append(edges_indices_combination[edge2_index])
+            elif max(edge1) == max(edge2) and min(edge1) == min(edge2):  # pattern4
+                # print("pattern4")
+                new_edge_indices.append(edges_indices_combination[edge1_index])
+                erased_edge_indices.append(edges_indices_combination[edge2_index])
+            elif max(edge2) > max(edge1) and max(edge1) > min(edge2):  # pattern2
+                # print("pattern2")
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                erased_edge_indices.append(edges_indices_combination[0])
+                erased_edge_indices.append(edges_indices_combination[1])
+            elif max(edge1) > max(edge2):  # pattern3
+                # print("pattern3")
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                new_edge_indices.append(edges_indices_combination[edge2_index])
+                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                erased_edge_indices.append(edges_indices_combination[edge1_index])
+
+        new_edge_indices = np.sort(np.array(new_edge_indices), axis=1)
+        new_edge_indices = np.unique(new_edge_indices, axis=0)
+
+        if erased_edge_indices != []:
+            erased_edge_indices = np.sort(np.array(erased_edge_indices), axis=1)
+            erased_edge_indices = np.unique(erased_edge_indices, axis=0)
+
+            for i in erased_edge_indices:
+                new_edge_indices = np.array([j for j in new_edge_indices if not np.array_equal(i, j)])
+
+        if np.array_equal(edges_indices, new_edge_indices):
+            print("yes")
+            trigger = 0
+        edges_indices = new_edge_indices
+
+    return edges_indices
+
+
 """
 if __name__ == "__main__":
     pointA = np.array([0, 0])
@@ -170,3 +257,19 @@ if __name__ == "__main__":
     pointD = np.array([-2, 4])
     print(calc_corresp_line(pointA, pointB, pointC, pointD))
 """
+
+nodes_pos = np.array([[1, 0],
+                      [4, 0],
+                      [2, 0],
+                      [5, 0],
+                      [0, 0],
+                      [3, 0]])
+
+
+edges_indices = np.array([[0, 1],
+                          [2, 3],
+                          [4, 5]])
+
+edges_thickness = np.array([1.0, 1.0, 1.0])
+
+make_same_slope_group_edge(nodes_pos, edges_indices)
