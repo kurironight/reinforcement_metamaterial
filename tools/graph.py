@@ -168,13 +168,29 @@ def separate_same_slope_group(nodes_pos, edges_indices):
     return edge_points
 
 
-def make_same_slope_group_edge(nodes_pos, edges_indices):
+def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):
+    # 同じ位置のノードを別々に扱わないことを前提にしている
+    assert np.unique(nodes_pos, axis=0).shape[0] == nodes_pos.shape[0], "there should be no same nodes pos with different node number"
+
+    def edge1_max_edge2_max_indices():
+        return np.sort([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+
+    def edge1_min_edge2_min_indices():
+        return np.sort([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+
+    def edge1_max_edge2_min_indices():
+        return np.sort([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+
+    def search_refer_edge_thickness(target_edges_indices, refer_edges_indices, refer_edge_thickness):
+        return refer_edge_thickness[(refer_edges_indices[:, 0] == target_edges_indices[0]) & (refer_edges_indices[:, 1] == target_edges_indices[1])].squeeze()
+
     trigger = 1
     while trigger == 1:
         edge_points = [np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices]
         combinations = [pair for pair in itertools.combinations(edge_points, 2)]
         edges_indices_combinations = [pair for pair in itertools.combinations(edges_indices, 2)]
-        new_edge_indices = []
+        new_edges_indices = []
+        new_edges_thickness = []
         erased_edge_indices = []
 
         for combination, edges_indices_combination in zip(combinations, edges_indices_combinations):
@@ -188,21 +204,24 @@ def make_same_slope_group_edge(nodes_pos, edges_indices):
 
             if max(edge1) < min(edge2):  # pattern1
                 # print("pattern1")
-                new_edge_indices.append(edges_indices_combination[0])
-                new_edge_indices.append(edges_indices_combination[1])
+                new_edges_indices.append(edges_indices_combination[0])
+                new_edges_indices.append(edges_indices_combination[1])
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[0], edges_indices, edges_thickness))
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[1], edges_indices, edges_thickness))
             elif max(edge1) == min(edge2):  # pattern5
                 # print("pattern5")
-                new_edge_indices.append(edges_indices_combination[edge1_index])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
-                if edges_indices_combination[edge1_index][np.argmax(edge1)] != edges_indices_combination[edge2_index][np.argmin(edge2)]:
-                    erased_edge_indices.append(edges_indices_combination[edge2_index])
+                new_edges_indices.append(edges_indices_combination[edge1_index])
+                new_edges_indices.append(edge1_max_edge2_max_indices())
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness))
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness))
             elif max(edge1) == max(edge2) and min(edge1) != min(edge2):  # pattern6
                 # print("pattern6")
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
+                new_edges_indices.append(edge1_min_edge2_min_indices())
+                new_edges_indices.append(edge1_max_edge2_min_indices())
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness))
+                new_edges_thickness.append(max([search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness),
+                                                search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness)]))
                 erased_edge_indices.append(edges_indices_combination[edge1_index])
-                if edges_indices_combination[edge1_index][np.argmax(edge1)] != edges_indices_combination[edge2_index][np.argmax(edge2)]:
-                    erased_edge_indices.append(edges_indices_combination[edge2_index])
             elif max(edge1) != max(edge2) and min(edge1) == min(edge2):  # pattern7
                 # redefine edge1 and edge2 rely to the max num
                 edge1_index = 0 if max(edge1) < max(edge2) else 1
@@ -210,66 +229,207 @@ def make_same_slope_group_edge(nodes_pos, edges_indices):
                 edge1 = combination[edge1_index][:, refer_index]
                 edge2 = combination[edge2_index][:, refer_index]
                 # print("pattern7")
-                new_edge_indices.append(edges_indices_combination[edge1_index])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
-                erased_edge_indices.append(edges_indices_combination[edge2_index])
-            elif max(edge1) == max(edge2) and min(edge1) == min(edge2):  # pattern4
-                # print("pattern4")
-                new_edge_indices.append(edges_indices_combination[edge1_index])
+                new_edges_indices.append(edges_indices_combination[edge1_index])
+                new_edges_indices.append(edge1_max_edge2_max_indices())
+                new_edges_thickness.append(max([search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness),
+                                                search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness)]))
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness))
                 erased_edge_indices.append(edges_indices_combination[edge2_index])
             elif max(edge2) > max(edge1) and max(edge1) > min(edge2):  # pattern2
                 # print("pattern2")
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                new_edges_indices.append(edge1_min_edge2_min_indices())
+                new_edges_indices.append(edge1_max_edge2_min_indices())
+                new_edges_indices.append(edge1_max_edge2_max_indices())
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness))
+                new_edges_thickness.append(max([search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness),
+                                                search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness)]))
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness))
                 erased_edge_indices.append(edges_indices_combination[0])
                 erased_edge_indices.append(edges_indices_combination[1])
             elif max(edge1) > max(edge2):  # pattern3
                 # print("pattern3")
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmin(edge1)], edges_indices_combination[edge2_index][np.argmin(edge2)]])
-                new_edge_indices.append(edges_indices_combination[edge2_index])
-                new_edge_indices.append([edges_indices_combination[edge1_index][np.argmax(edge1)], edges_indices_combination[edge2_index][np.argmax(edge2)]])
+                new_edges_indices.append(edge1_min_edge2_min_indices())
+                new_edges_indices.append(edges_indices_combination[edge2_index])
+                new_edges_indices.append(edge1_max_edge2_max_indices())
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness))
+                new_edges_thickness.append(max([search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness),
+                                                search_refer_edge_thickness(edges_indices_combination[edge2_index], edges_indices, edges_thickness)]))
+                new_edges_thickness.append(search_refer_edge_thickness(edges_indices_combination[edge1_index], edges_indices, edges_thickness))
                 erased_edge_indices.append(edges_indices_combination[edge1_index])
+        refer_new_edges_indices = np.array(new_edges_indices).copy()  # ソート済
+        new_edges_indices = np.unique(np.array(new_edges_indices), axis=0)
 
-        new_edge_indices = np.sort(np.array(new_edge_indices), axis=1)
-        new_edge_indices = np.unique(new_edge_indices, axis=0)
-
-        if erased_edge_indices != []:
+        if erased_edge_indices != []:  # 除外するリストを用意し，除去する．
             erased_edge_indices = np.sort(np.array(erased_edge_indices), axis=1)
             erased_edge_indices = np.unique(erased_edge_indices, axis=0)
 
             for i in erased_edge_indices:
-                new_edge_indices = np.array([j for j in new_edge_indices if not np.array_equal(i, j)])
+                new_edges_indices = np.array([j for j in new_edges_indices if not np.array_equal(i, j)])
 
-        if np.array_equal(edges_indices, new_edge_indices):
+        if np.array_equal(edges_indices, new_edges_indices):
             print("yes")
             trigger = 0
-        edges_indices = new_edge_indices
+        edges_indices = new_edges_indices
 
-    return edges_indices
+        new_edges_thickness = np.array(new_edges_thickness)
+        edges_thickness = []
+        for edge_indice in new_edges_indices:
+            edges_thickness.append(np.max(new_edges_thickness[(refer_new_edges_indices[:, 0] == edge_indice[0]) & (refer_new_edges_indices[:, 1] == edge_indice[1])]))
+        edges_thickness = np.array(edges_thickness)
 
-
-"""
-if __name__ == "__main__":
-    pointA = np.array([0, 0])
-    pointB = np.array([-1, 1])
-    pointC = np.array([0, 2])
-    pointD = np.array([-2, 4])
-    print(calc_corresp_line(pointA, pointB, pointC, pointD))
-"""
-
-nodes_pos = np.array([[1, 0],
-                      [4, 0],
-                      [2, 0],
-                      [5, 0],
-                      [0, 0],
-                      [3, 0]])
+    return edges_indices, edges_thickness
 
 
-edges_indices = np.array([[0, 1],
-                          [2, 3],
-                          [4, 5]])
+def test_1():
+    nodes_pos = np.array([[1, 0],
+                          [4, 0],
+                          [2, 0],
+                          [5, 0],
+                          [0, 0],
+                          [3, 0]])
 
-edges_thickness = np.array([1.0, 1.0, 1.0])
+    edges_indices = np.array([[0, 1],
+                              [2, 3],
+                              [4, 5]])
 
-make_same_slope_group_edge(nodes_pos, edges_indices)
+    edges_thickness = np.array([6, 3, 2])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 3],
+                                                [1, 5],
+                                                [2, 4],
+                                                [2, 6],
+                                                [3, 6]]) - 1)
+    assert np.allclose(edges_thickness, np.array([6, 2, 3, 6, 6]))
+
+
+def test_2():
+    nodes_pos = np.array([[1, 0],
+                          [4, 0],
+                          [2, 0],
+                          [5, 0],
+                          [0, 0],
+                          [3, 0]])
+
+    edges_indices = np.array([[0, 1],
+                              [2, 3],
+                              [4, 5]])
+
+    edges_thickness = np.array([2, 6, 4])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 3],
+                                                [1, 5],
+                                                [2, 4],
+                                                [2, 6],
+                                                [3, 6]]) - 1)
+    assert np.allclose(edges_thickness, np.array([4, 4, 6, 6, 6]))
+
+
+def test_3():
+    nodes_pos = np.array([[1, 0],
+                          [4, 0],
+                          [2, 0],
+                          [5, 0],
+                          [0, 0],
+                          [3, 0]])
+
+    edges_indices = np.array([[0, 1],
+                              [2, 3],
+                              [4, 5]])
+
+    edges_thickness = np.array([4, 2, 6])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 3],
+                                                [1, 5],
+                                                [2, 4],
+                                                [2, 6],
+                                                [3, 6]]) - 1)
+    assert np.allclose(edges_thickness, np.array([6, 6, 2, 4, 6]))
+
+
+def test_4():
+    nodes_pos = np.array([[2, 0],
+                          [3, 0],
+                          [4, 0],
+                          [1, 0],
+                          [5, 0]])
+
+    edges_indices = np.array([[1, 2],
+                              [2, 3],
+                              [4, 5]]) - 1
+
+    edges_thickness = np.array([2, 3, 1])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 2],
+                                                [1, 4],
+                                                [2, 3],
+                                                [3, 5]]) - 1)
+    assert np.allclose(edges_thickness, np.array([2, 1, 3, 1]))
+
+
+def test_5():
+    nodes_pos = np.array([[1, 0],
+                          [3, 0],
+                          [2, 0],
+                          [0, 0],
+                          [4, 0]])
+
+    edges_indices = np.array([[1, 2],
+                              [2, 3],
+                              [4, 5]]) - 1
+
+    edges_thickness = np.array([4, 6, 2])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 3],
+                                                [1, 4],
+                                                [2, 3],
+                                                [2, 5]]) - 1)
+    assert np.allclose(edges_thickness, np.array([4, 2, 6, 2]))
+
+
+def test_6():
+    nodes_pos = np.array([[1, 0],
+                          [2, 0],
+                          [3, 0],
+                          [0, 0],
+                          [4, 0]])
+
+    edges_indices = np.array([[1, 2],
+                              [1, 3],
+                              [4, 5]]) - 1
+
+    edges_thickness = np.array([4, 3, 2])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 2],
+                                                [1, 4],
+                                                [2, 3],
+                                                [3, 5]]) - 1)
+    assert np.allclose(edges_thickness, np.array([4, 2, 3, 2]))
+
+
+def test_8():
+    nodes_pos = np.array([[2, 0],
+                          [3, 0],
+                          [1, 0],
+                          [0, 0],
+                          [4, 0]])
+
+    edges_indices = np.array([[1, 2],
+                              [2, 3],
+                              [3, 4],
+                              [4, 5],
+                              [2, 5]]) - 1
+
+    edges_thickness = np.array([3, 1, 2, 1, 2])
+
+    edges_indices, edges_thickness = make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness)
+    assert np.allclose(edges_indices, np.array([[1, 2],
+                                                [1, 3],
+                                                [2, 5],
+                                                [3, 4]]) - 1)
+    assert np.allclose(edges_thickness, np.array([3, 1, 2, 2]))
