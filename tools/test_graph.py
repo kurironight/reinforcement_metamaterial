@@ -1,5 +1,5 @@
 import numpy as np
-from .graph import make_same_slope_group_edge
+from .graph import *
 
 
 def test_1():
@@ -155,3 +155,18 @@ def test_8():
                                                 [2, 5],
                                                 [3, 4]]) - 1)
     assert np.allclose(edges_thickness, np.array([3, 1, 2, 2]))
+
+
+def test_seperate_y_axis_slope_group():
+    nodes_pos = np.array([[0, 1],
+                          [1, 0],
+                          [0, 3],
+                          [0, 2],
+                          [4, 0]])
+
+    edges_indices = np.array([[1, 3],
+                              [2, 3],
+                              [3, 4],
+                              [4, 5]]) - 1
+    same_slope_group = separate_same_slope_group(nodes_pos, edges_indices)
+    assert np.array_equal(same_slope_group, np.array([[[1, 3], [3, 4]]]) - 1)

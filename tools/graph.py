@@ -169,7 +169,10 @@ def separate_same_slope_group(nodes_pos, edges_indices):
     independent_group = []
     edge_points = [[nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]] for edges_indice in edges_indices]
     # 最初に，傾きが無限（＝y軸に平行）なものをグループ化する．
-    y_axis_slope_group = [edges_indice for edge_point, edges_indice in zip(edge_points, edges_indices) if edge_point[0, 0] == edge_point[1, 0]]
+    y_axis_slope_group = [edges_indice for edge_point, edges_indice in zip(edge_points, edges_indices) if edge_point[0][0] == edge_point[1][0]]
+    if y_axis_slope_group != []:
+        same_slope_group.append(y_axis_slope_group)
+    return same_slope_group
 
 
 def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):
