@@ -163,32 +163,37 @@ def calc_corresp_line(pointA, pointB, pointC, pointD):
         return False
 
 
-def separate_same_slope_group(nodes_pos, edges_indices):
-    # 同じ傾きを持つ直線をリストごとにまとめる．そして，一つも同じ傾きを持たないものもリストにまとめる．
-    same_slope_group = []
+def separate_same_line_group(nodes_pos, edges_indices):
+    # 同じ直線上にあるエッジをリストごとにまとめる．そして，独立しているエッジもリストにまとめる．
+    same_line_groups = []
     independent_group = []
     edge_points = np.array([[nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]] for edges_indice in edges_indices])
-    # 最初に，傾きが無限（＝y軸に平行）なものをグループ化する．
-    y_axis_slope_group = np.array([edges_indice for edge_point, edges_indice in zip(edge_points, edges_indices) if edge_point[0][0] == edge_point[1][0]])
-    if y_axis_slope_group != []:
-        same_slope_group.append(y_axis_slope_group)
-        for i in y_axis_slope_group:
-            remove_index = np.argwhere((edges_indices[:, 0] == i[0]) & (edges_indices[:, 1] == i[1])).squeeze()
-            edge_points = np.delete(edge_points, remove_index, axis=0)
-            edges_indices = np.delete(edges_indices, remove_index, axis=0)
+    while edges_indices.shape[0] != 0:
+        ref_same_line_group = []
+        ref_edge_indice = edges_indices[0]
+        ref_edge_point = edge_points[0]
+        ref_same_line_group.append(ref_edge_indice)
+        edges_indices = np.delete(edges_indices, 0, 0)
+        edge_points = np.delete(edge_points, 0, 0)
+        for edge_point, edges_indice in zip(edge_points.copy(), edges_indices.copy()):
+            if calc_corresp_line(ref_edge_point[0], ref_edge_point[1], edge_point[0], edge_point[1]):
+                ref_same_line_group.append(edges_indice)
+                remove_index = find_edge_indice_index(edges_indice, edges_indices)
+                edge_points = np.delete(edge_points, remove_index, axis=0)
+                edges_indices = np.delete(edges_indices, remove_index, axis=0)
 
-    # 次に，同じ傾きのものを取り揃える．
-    edge_slope = np.array([(edge_point[0][1] - edge_point[1][1]) / (edge_point[0][0] - edge_point[1][0]) for edge_point in edge_points])
-    for i in np.unique(edge_slope):
-        if np.count_nonzero(edge_slope == i) > 1:
-            same_slope_group.append(np.array(edges_indices[edge_slope == i]))
+        if len(ref_same_line_group) != 1:
+            same_line_groups.append(ref_same_line_group)
         else:
-            independent_group.append(np.array(edges_indices[edge_slope == i]))
+            independent_group.append(ref_same_line_group)
 
-    return np.array(same_slope_group), np.squeeze(np.array(independent_group), 1)
+    same_line_groups = np.array(same_line_groups) if len(same_line_groups) != 0 else []
+    independent_group = np.squeeze(np.array(independent_group), 1) if len(independent_group) != 0 else []
+
+    return same_line_groups, independent_group
 
 
-def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):
+def make_same_line_group_edge(nodes_pos, edges_indices, edges_thickness):
     # 同じ位置のノードを別々に扱わないことを前提にしている
     assert np.unique(nodes_pos, axis=0).shape[0] == nodes_pos.shape[0], "there should be no same nodes pos with different node number"
 
@@ -287,7 +292,6 @@ def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):
                 new_edges_indices = np.array([j for j in new_edges_indices if not np.array_equal(i, j)])
 
         if np.array_equal(edges_indices, new_edges_indices):
-            print("yes")
             trigger = 0
         edges_indices = new_edges_indices
 
@@ -298,3 +302,7 @@ def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):
         edges_thickness = np.array(edges_thickness)
 
     return edges_indices, edges_thickness
+
+
+def find_edge_indice_index(target_edges_indice, ref_edge_indices):
+    return np.argwhere((ref_edge_indices[:, 0] == target_edges_indice[0]) & (ref_edge_indices[:, 1] == target_edges_indice[1])).squeeze()
