@@ -167,12 +167,25 @@ def separate_same_slope_group(nodes_pos, edges_indices):
     # 同じ傾きを持つ直線をリストごとにまとめる．そして，一つも同じ傾きを持たないものもリストにまとめる．
     same_slope_group = []
     independent_group = []
-    edge_points = [[nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]] for edges_indice in edges_indices]
+    edge_points = np.array([[nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]] for edges_indice in edges_indices])
     # 最初に，傾きが無限（＝y軸に平行）なものをグループ化する．
-    y_axis_slope_group = [edges_indice for edge_point, edges_indice in zip(edge_points, edges_indices) if edge_point[0][0] == edge_point[1][0]]
+    y_axis_slope_group = np.array([edges_indice for edge_point, edges_indice in zip(edge_points, edges_indices) if edge_point[0][0] == edge_point[1][0]])
     if y_axis_slope_group != []:
         same_slope_group.append(y_axis_slope_group)
-    return same_slope_group
+        for i in y_axis_slope_group:
+            remove_index = np.argwhere((edges_indices[:, 0] == i[0]) & (edges_indices[:, 1] == i[1])).squeeze()
+            edge_points = np.delete(edge_points, remove_index, axis=0)
+            edges_indices = np.delete(edges_indices, remove_index, axis=0)
+
+    # 次に，同じ傾きのものを取り揃える．
+    edge_slope = np.array([(edge_point[0][1] - edge_point[1][1]) / (edge_point[0][0] - edge_point[1][0]) for edge_point in edge_points])
+    for i in np.unique(edge_slope):
+        if np.count_nonzero(edge_slope == i) > 1:
+            same_slope_group.append(np.array(edges_indices[edge_slope == i]))
+        else:
+            independent_group.append(np.array(edges_indices[edge_slope == i]))
+
+    return np.array(same_slope_group), np.squeeze(np.array(independent_group), 1)
 
 
 def make_same_slope_group_edge(nodes_pos, edges_indices, edges_thickness):

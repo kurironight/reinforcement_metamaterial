@@ -168,5 +168,28 @@ def test_seperate_y_axis_slope_group():
                               [2, 3],
                               [3, 4],
                               [4, 5]]) - 1
-    same_slope_group = separate_same_slope_group(nodes_pos, edges_indices)
+    same_slope_group, independent_group = separate_same_slope_group(nodes_pos, edges_indices)
     assert np.array_equal(same_slope_group, np.array([[[1, 3], [3, 4]]]) - 1)
+    assert np.array_equal(independent_group, np.array([[2, 3], [4, 5]]) - 1)
+
+
+def test_seperate_slope_group():
+    nodes_pos = np.array([[0, 1],
+                          [1, 0],
+                          [0, 3],
+                          [0, 2],
+                          [4, 0],
+                          [0, 0],
+                          [1, 1],
+                          [3, 3]])
+
+    edges_indices = np.array([[1, 3],
+                              [2, 3],
+                              [3, 4],
+                              [4, 5],
+                              [6, 7],
+                              [6, 8]]) - 1
+    same_slope_group, independent_group = separate_same_slope_group(nodes_pos, edges_indices)
+    assert np.array_equal(same_slope_group, np.array([[[1, 3], [3, 4]],
+                                                      [[6, 7], [6, 8]]]) - 1)
+    assert np.array_equal(independent_group, np.array([[2, 3], [4, 5]]) - 1)
