@@ -249,3 +249,69 @@ def test_seperate_same_line_procedure():
 
     for i, t in zip(answer_edges_indices, answer_edges_thickness):
         assert t == revised_edges_thickness[find_edge_indice_index(i, revised_edges_indices)]
+
+
+def test_seperate_same_line_plus_independent_procedure():
+    nodes_pos = np.array([[0, 0],
+                          [0.25, 0],
+                          [0.5, 0],
+                          [0.75, 0],
+                          [1, 0],
+                          [1, 1],
+                          [0, 1],
+                          [0.5, 0.5],
+                          [0.25, 0.25]])
+
+    edges_indices = np.array([[1, 2],
+                              [2, 3],
+                              [3, 4],
+                              [4, 5],
+                              [1, 6],
+                              [5, 8],
+                              [7, 8],
+                              [8, 9],
+                              [1, 3],
+                              [2, 4],
+                              [1, 9],
+                              [3, 8],
+                              [5, 6],
+                              [1, 7]]) - 1
+
+    edges_thickness = np.array([1.0, 1.0, 1.0, 1.0, 1.5, 2, 3, 2, 2, 5, 1, 1, 2, 3])
+
+    sl_groups, independent_group = separate_same_line_group(nodes_pos, edges_indices)
+
+    revised_edges_indices = np.empty((0, 2), int)
+    revised_edges_thickness = np.empty(0)
+
+    if sl_groups != []:
+        for sl_group_edge_indices in sl_groups:
+            sl_group_edge_indices = np.array(sl_group_edge_indices).reshape((-1, 2))
+            sl_group_edges_thickness = np.array([edges_thickness[find_edge_indice_index(target_edges_indice, edges_indices)] for target_edges_indice in sl_group_edge_indices])
+            revised_sl_group_edge_indices, revised_sl_edges_thickness = \
+                make_same_line_group_edge(nodes_pos, sl_group_edge_indices, sl_group_edges_thickness)
+            revised_edges_indices = np.append(revised_edges_indices, revised_sl_group_edge_indices, axis=0)
+            revised_edges_thickness = np.append(revised_edges_thickness, revised_sl_edges_thickness, axis=0)
+
+    if independent_group != []:
+        id_group_edges_thickness = np.array([edges_thickness[find_edge_indice_index(target_edges_indice, edges_indices)] for target_edges_indice in independent_group])
+        revised_edges_indices = np.append(revised_edges_indices, independent_group, axis=0)
+        revised_edges_thickness = np.append(revised_edges_thickness, id_group_edges_thickness, axis=0)
+
+    answer_edges_indices = np.array([[1, 2],
+                                     [2, 3],
+                                     [3, 4],
+                                     [4, 5],
+                                     [1, 9],
+                                     [8, 9],
+                                     [6, 8],
+                                     [5, 8],
+                                     [7, 8],
+                                     [3, 8],
+                                     [5, 6],
+                                     [1, 7]]) - 1
+
+    answer_edges_thickness = np.array([2, 5, 5, 1, 1.5, 2, 1.5, 2, 3, 1, 2, 3])
+
+    for i, t in zip(answer_edges_indices, answer_edges_thickness):
+        assert t == revised_edges_thickness[find_edge_indice_index(i, revised_edges_indices)]

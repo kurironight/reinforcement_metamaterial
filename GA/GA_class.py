@@ -50,7 +50,7 @@ class Barfem_GA(Problem):
         gene_nodes_pos, gene_edges_thickness, gene_adj_element = self.convert_var_to_arg(solution.variables)
         return self.calculate_efficiency(gene_nodes_pos, gene_edges_thickness, gene_adj_element)
 
-    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_path=False):
+    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_path=False, cross_fix=True):
 
         # make edge_indices
         edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
@@ -77,7 +77,18 @@ class Barfem_GA(Problem):
         # make edges_thickness
         edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
+        # TODO 線分が一致しているものを，ノード分割して処理する
+        # 同じノード位置にあるものを排除する．
 
+        # 傾きが一致するものをグループ分けする．
+
+        # エッジ分割を行う．
+
+        # TODO 交差処理を行う
+
+        # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+
+        # efficiencyを計算する
         env = BarFemGym(nodes_pos, self.input_nodes, self.input_vectors,
                         self.output_nodes, self.output_vectors, self.frozen_nodes,
                         edges_indices, edges_thickness, self.frozen_nodes)
