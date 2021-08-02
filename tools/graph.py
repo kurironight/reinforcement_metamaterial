@@ -333,3 +333,35 @@ def separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
         revised_edges_thickness = np.append(revised_edges_thickness, id_group_edges_thickness, axis=0)
 
     return revised_edges_indices, revised_edges_thickness
+
+
+def preprocess_separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
+    # 同じ位置にノードが存在する時，結合する
+    # 同じ位置にあるノードのedge_indiceにおける番号を統一する
+    remove_node_index = np.empty(0, int)
+    for node_index, node_pos in enumerate(nodes_pos):
+        same_index = np.argwhere([np.allclose(node_pos, ref_node_pos) for ref_node_pos in nodes_pos])
+        if same_index.shape[0] != 1:
+            ident_node_index = min(same_index)
+            erased_node_index = np.setdiff1d(same_index, ident_node_index)
+            edges_indices[np.isin(edges_indices, erased_node_index)] = ident_node_index
+            remove_node_index = np.append(remove_node_index, erased_node_index, axis=0)
+    # 抜けたノードの分，ノードのindexをedge_indicesに指定しなおす
+    ref_nodes_pos = nodes_pos.copy()
+    remove_node_index = np.unique(remove_node_index)
+    processed_nodes_pos = np.delete(nodes_pos, remove_node_index, 0)  # 被りがないnode_pos
+    processed_edges_indices = edges_indices.copy()
+    for i, target_node_pos in enumerate(processed_nodes_pos):
+        processed_edges_indices[edges_indices == np.min(find_nodes_pos_index(target_node_pos, ref_nodes_pos))] = i
+    ref_processed_edges_indices = processed_edges_indices.copy()
+
+    # edge_indiceの内，被りがあるものを除去する
+    processed_edges_indices = np.unique(np.array(processed_edges_indices), axis=0)
+
+    # 除去したもののedge_thickを除去する
+    processed_edges_thickness = []
+    for target_edge_indice in processed_edges_indices:
+        processed_edges_thickness.append(np.max(edges_thickness[find_edge_indice_index(target_edge_indice, ref_processed_edges_indices)]))
+    processed_edges_thickness = np.array(processed_edges_thickness)
+
+    return processed_nodes_pos, processed_edges_indices, processed_edges_thickness
