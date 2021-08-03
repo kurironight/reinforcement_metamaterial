@@ -365,3 +365,25 @@ def preprocess_separate_same_line_procedure(nodes_pos, edges_indices, edges_thic
     processed_edges_thickness = np.array(processed_edges_thickness)
 
     return processed_nodes_pos, processed_edges_indices, processed_edges_thickness
+
+
+def conprocess_seperate_edge_indice_procedure(condition_input_nodes, condition_output_nodes, condition_frozen_nodes, condition_nodes_pos, condition_edges_indices, condition_edges_thickness,
+                                              processed_nodes_pos, processed_edges_indices, processed_edges_thickness):
+    """入力ノード，出力ノード，固定ノードのindexを指定しなおす．また，条件ノード間のエッジの太さを元に戻す．
+    """
+    # input_nodesのindexを再指定
+    input_nodes = [find_nodes_pos_index(condition_nodes_pos[target_node], processed_nodes_pos) for target_node in condition_input_nodes]
+    # output_nodesのindexを再指定
+    output_nodes = [find_nodes_pos_index(condition_nodes_pos[target_node], processed_nodes_pos) for target_node in condition_output_nodes]
+    # frozen_nodesのindexを再指定
+    frozen_nodes = [find_nodes_pos_index(condition_nodes_pos[target_node], processed_nodes_pos) for target_node in condition_frozen_nodes]
+    # processed_edges_thicknessの固定部分をcondition_edge_thicknessに再指定
+    condition_edge_points = np.array([[condition_nodes_pos[edges_indice[0]], condition_nodes_pos[edges_indice[1]]] for edges_indice in condition_edges_indices])
+    processed_edge_points = np.array([[processed_nodes_pos[edges_indice[0]], processed_nodes_pos[edges_indice[1]]] for edges_indice in processed_edges_indices])
+    for i, t in zip(condition_edge_points, condition_edges_thickness):
+        target_index = np.argwhere(np.array([np.array_equal(j, i[0]) for j in processed_edge_points[:, 0]]) & np.array([np.array_equal(j, i[1]) for j in processed_edge_points[:, 1]]))
+        if target_index.shape[0] == 0:
+            target_index = np.argwhere(np.array([np.array_equal(j, i[1]) for j in processed_edge_points[:, 0]]) & np.array([np.array_equal(j, i[0]) for j in processed_edge_points[:, 1]]))
+        processed_edges_thickness[target_index] = t
+
+    return input_nodes, output_nodes, frozen_nodes, processed_edges_thickness
