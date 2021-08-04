@@ -129,10 +129,10 @@ def calc_cross_point(pointA, pointB, pointC, pointD):
     r = ((pointD[1] - pointC[1]) * vectorAC[0] - (pointD[0] - pointC[0]) * vectorAC[1]) / bunbo
     s = ((pointB[1] - pointA[1]) * vectorAC[0] - (pointB[0] - pointA[0]) * vectorAC[1]) / bunbo
 
-    if (0 < r and r < 1) and (0 < s and s < 1):
+    if (0 < r and r < 1) and (0 < s and s < 1):  # 交差しているとき TODO 片方のエッジ上にノードが乗っている場合，s=0 ors=1 もしくは逆
         # rを使った計算の場合
         distance = ((pointB[0] - pointA[0]) * r, (pointB[1] - pointA[1]) * r)
-        cross_point = (pointA[0] + distance[0], pointA[1] + distance[1])
+        cross_point = np.array([pointA[0] + distance[0], pointA[1] + distance[1]])
         return True, cross_point
     else:
         return False, cross_point
@@ -335,8 +335,11 @@ def separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
     return revised_edges_indices, revised_edges_thickness
 
 
-def preprocess_separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
-    # 同じ位置にノードが存在する時，結合する
+def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
+    # 同じノードの排除，[1,1]などのエッジの排除，エッジのソートなどを行う
+
+    # edge_indicesをaxis1方向にソートする．
+    edges_indices = np.sort(edges_indices, axis=1)
     # 同じ位置にあるノードのedge_indiceにおける番号を統一する
     remove_node_index = np.empty(0, int)
     for node_index, node_pos in enumerate(nodes_pos):
@@ -363,6 +366,12 @@ def preprocess_separate_same_line_procedure(nodes_pos, edges_indices, edges_thic
     for target_edge_indice in processed_edges_indices:
         processed_edges_thickness.append(np.max(edges_thickness[find_edge_indice_index(target_edge_indice, ref_processed_edges_indices)]))
     processed_edges_thickness = np.array(processed_edges_thickness)
+
+    # edge_indicesのうち，[1,1]などのように同じノードを示しているものを除去する
+    ident_edge_index = np.argwhere(processed_edges_indices[:, 0] == processed_edges_indices[:, 1])
+    if ident_edge_index.shape[0] != 0:
+        processed_edges_indices = np.delete(processed_edges_indices, ident_edge_index, 0)
+        processed_edges_thickness = np.delete(processed_edges_thickness, ident_edge_index, 0)
 
     return processed_nodes_pos, processed_edges_indices, processed_edges_thickness
 
