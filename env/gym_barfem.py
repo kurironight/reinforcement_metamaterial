@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency
+from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency, render_graph
 
 
 class BarFemGym(MetamechGym):
@@ -33,32 +33,10 @@ class BarFemGym(MetamechGym):
             save_path (str, optional): 図を保存するパス. Defaults to "image/image.png".
             display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
         """
-
-        edge_size = 30  # 図示する時のエッジの太さ
-        marker_size = 40  # 図示するときのノードのサイズ
-        character_size = 20  # ノードの文字のサイズ
-
-        plt.clf()  # Matplotlib内の図全体をクリアする
         dir_name = os.path.dirname(save_path)
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
 
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
-        starts = nodes_pos[edges_indices[:, 0]]
-        ends = nodes_pos[edges_indices[:, 1]]
-
-        lines = [(start, end) for start, end in zip(starts, ends)]
-
-        lines = LineCollection(lines, linewidths=edges_thickness * edge_size)
-
-        fig, ax = plt.subplots()
-        ax.add_collection(lines)
-        ax.scatter(nodes_pos[:, 0], nodes_pos[:, 1], s=marker_size, c="red", zorder=2)
-        if display_number:
-            for i, txt in enumerate(["{}".format(i) for i in range(nodes_pos.shape[0])]):
-                ax.annotate(txt, (nodes_pos[i, 0], nodes_pos[i, 1]), size=character_size, horizontalalignment="center", verticalalignment="center")
-        ax.autoscale()
-
-        plt.savefig(save_path)
-        plt.close()
+        render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number)

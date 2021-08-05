@@ -1,5 +1,7 @@
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 
 
 def convert_edge_indices_to_adj(edges_indices, size=False):
@@ -460,9 +462,9 @@ def remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, fr
     かつノードのindexを再振り分けした上でedges_indicesやinput_nodesなどを返す．
 
     Args:
-        input_nodes (list): 
-        output_nodes (list): 
-        frozen_nodes (list): 
+        input_nodes (list):
+        output_nodes (list):
+        frozen_nodes (list):
         nodes_pos (np.array): (*,2)
         edges_indices (np.array): (*,2)
     """
@@ -502,3 +504,32 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     denominator = np.sum([np.dot(input_vectors[i] / np.linalg.norm(input_vectors[i]), displacement[[input_node * 3 + 0, input_node * 3 + 1]]) for i, input_node in enumerate(input_nodes)])
     efficiency = np.dot(output_vectors / np.linalg.norm(output_vectors), displacement[[output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]]) / denominator
     return efficiency
+
+
+def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False):
+    """グラフを図示
+    Args:
+        save_path (str, optional): 図を保存するパス.
+        display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
+    """
+    edge_size = 30  # 図示する時のエッジの太さ
+    marker_size = 40  # 図示するときのノードのサイズ
+    character_size = 20  # ノードの文字のサイズ
+
+    starts = nodes_pos[edges_indices[:, 0]]
+    ends = nodes_pos[edges_indices[:, 1]]
+
+    lines = [(start, end) for start, end in zip(starts, ends)]
+
+    lines = LineCollection(lines, linewidths=edges_thickness * edge_size)
+
+    plt.clf()  # Matplotlib内の図全体をクリアする
+    fig, ax = plt.subplots()
+    ax.add_collection(lines)
+    ax.scatter(nodes_pos[:, 0], nodes_pos[:, 1], s=marker_size, c="red", zorder=2)
+    if display_number:
+        for i, txt in enumerate(["{}".format(i) for i in range(nodes_pos.shape[0])]):
+            ax.annotate(txt, (nodes_pos[i, 0], nodes_pos[i, 1]), size=character_size, horizontalalignment="center", verticalalignment="center")
+    ax.autoscale()
+    plt.savefig(save_path)
+    plt.close()
