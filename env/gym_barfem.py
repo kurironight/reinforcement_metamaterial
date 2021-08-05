@@ -4,6 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from tools.graph import remove_node_which_nontouchable_in_edge_indices
 
 
 class BarFemGym(MetamechGym):
@@ -21,30 +22,7 @@ class BarFemGym(MetamechGym):
         node_num = nodes_pos.shape[0]
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
-        mask = np.isin(np.arange(node_num), edges_indices)
-        if not np.all(mask):  # edges_indicesで触れられていないノードがnodes_posに存在する時，これらを除外したうえで，barfemにかける
-            processed_input_nodes = input_nodes.copy()
-            processed_frozen_nodes = frozen_nodes.copy()
-            processed_output_nodes = output_nodes.copy()
-            processed_edges_indices = edges_indices.copy()
-            prior_index = np.arange(node_num)[mask]
-            processed_nodes_pos = nodes_pos[mask]
-            for index, prior_index in enumerate(prior_index):
-                if index != prior_index:
-                    processed_edges_indices[edges_indices ==
-                                            prior_index] = index
-                    # input_nodesとfrozen_nodes部分のラベルを変更
-                    processed_input_nodes[input_nodes == prior_index] = index
-                    processed_output_nodes[output_nodes == prior_index] = index
-                    processed_frozen_nodes[frozen_nodes == prior_index] = index
-            nodes_pos = processed_nodes_pos
-            edges_indices = processed_edges_indices
-            input_nodes = processed_input_nodes
-            output_nodes = processed_output_nodes
-            frozen_nodes = processed_frozen_nodes
-        input_nodes = input_nodes.tolist()
-        output_nodes = output_nodes.tolist()
-        frozen_nodes = frozen_nodes.tolist()
+        input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices)
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
 
