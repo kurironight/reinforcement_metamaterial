@@ -493,3 +493,9 @@ def remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, fr
     frozen_nodes = frozen_nodes.tolist()
 
     return input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices
+
+
+def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement):
+    denominator = np.sum([np.dot(input_vectors[i] / np.linalg.norm(input_vectors[i]), displacement[[input_node * 3 + 0, input_node * 3 + 1]]) for i, input_node in enumerate(input_nodes)])
+    efficiency = np.dot(output_vectors / np.linalg.norm(output_vectors), displacement[[output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]]) / denominator
+    return efficiency

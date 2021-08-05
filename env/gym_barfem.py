@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-from tools.graph import remove_node_which_nontouchable_in_edge_indices
+from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency
 
 
 class BarFemGym(MetamechGym):
@@ -25,10 +25,7 @@ class BarFemGym(MetamechGym):
         input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices)
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
-
-        denominator = np.sum([np.dot(self.input_vectors[i] / np.linalg.norm(self.input_vectors[i]), displacement[[input_node * 3 + 0, input_node * 3 + 1]]) for i, input_node in enumerate(input_nodes)])
-        efficiency = np.dot(self.output_vectors / np.linalg.norm(self.output_vectors), displacement[[
-                            output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]]) / denominator
+        efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
         return efficiency
 
     # 環境の描画
