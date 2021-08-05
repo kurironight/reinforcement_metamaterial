@@ -1,14 +1,15 @@
-from env.gym_metamech import MAX_EDGE_THICKNESS
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
     CompoundOperator, SBX, HUX, PM, BitFlip
 from .condition import condition
 from tools.lattice_preprocess import make_main_node_edge_info
-from tools.graph import calc_cross_point
+from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
+    conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
+    remove_node_which_nontouchable_in_edge_indices, render_graph
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
-from env.gym_barfem import BarFemGym
 import os
+from FEM.bar_fem import barfem
 
 
 class Barfem_GA(Problem):
@@ -50,7 +51,7 @@ class Barfem_GA(Problem):
         gene_nodes_pos, gene_edges_thickness, gene_adj_element = self.convert_var_to_arg(solution.variables)
         return self.calculate_efficiency(gene_nodes_pos, gene_edges_thickness, gene_adj_element)
 
-    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_path=False, cross_fix=True):
+    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=True):
 
         # make edge_indices
         edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
@@ -77,27 +78,37 @@ class Barfem_GA(Problem):
         # make edges_thickness
         edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
-        # TODO 線分が一致しているものを，ノード分割して処理する
-        # 同じノード位置にあるものを排除する．
 
-        # 傾きが一致するものをグループ分けする．
+        # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+        processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+        # 傾きが一致するものをグループ分けし，エッジ分割を行う．
+        processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+        if cross_fix:
+            # 交差処理を行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness =\
+                seperate_cross_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
-        # エッジ分割を行う．
-
-        # TODO 交差処理を行う
+        # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+        processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
+            preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
         # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+        input_nodes, output_nodes, frozen_nodes, processed_edges_thickness \
+            = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                        self.condition_edges_indices, self.condition_edges_thickness,
+                                                        processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
         # efficiencyを計算する
-        env = BarFemGym(nodes_pos, self.input_nodes, self.input_vectors,
-                        self.output_nodes, self.output_vectors, self.frozen_nodes,
-                        edges_indices, edges_thickness, self.frozen_nodes)
-        env.reset()
-        efficiency = env.calculate_simulation()
-        if np_save_path:
-            env.render(save_path=os.path.join(np_save_path, "image.png"))
-            np.save(os.path.join(np_save_path, "nodes_pos.npy"), nodes_pos)
-            np.save(os.path.join(np_save_path, "edges_indices.npy"), edges_indices)
-            np.save(os.path.join(np_save_path, "edges_thickness.npy"), edges_thickness)
+        input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+        displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                              self.input_vectors, frozen_nodes, mode='displacement')
+
+        efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+        if np_save_dir:  # グラフの画像を保存する
+            render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=False)
+            np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
+            np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
+            np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
 
         return float(efficiency)
