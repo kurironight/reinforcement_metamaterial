@@ -16,9 +16,6 @@ class BarFemGym(MetamechGym):
 
     def calculate_simulation(self, mode='displacement'):
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
-        input_nodes = np.array(self.input_nodes)
-        frozen_nodes = np.array(self.frozen_nodes)
-        output_nodes = np.array(self.output_nodes)
         node_num = nodes_pos.shape[0]
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'

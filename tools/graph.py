@@ -466,6 +466,9 @@ def remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, fr
         nodes_pos (np.array): (*,2)
         edges_indices (np.array): (*,2)
     """
+    input_nodes = np.array(input_nodes)
+    frozen_nodes = np.array(frozen_nodes)
+    output_nodes = np.array(output_nodes)
     node_num = nodes_pos.shape[0]
     mask = np.isin(np.arange(node_num), edges_indices)
     if not np.all(mask):  # edges_indicesで触れられていないノードがnodes_posに存在する時，これらを除外したうえで，barfemにかける
