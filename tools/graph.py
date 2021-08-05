@@ -313,6 +313,13 @@ def find_nodes_pos_index(target_node_pos, ref_nodes_pos):
 
 
 def separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
+    """同じ直線上に存在するエッジを考慮し，エッジ分割を行う
+
+    Args:
+        nodes_pos (np.array): (*,2)
+        edges_indices (np.array): (*,2)
+        edges_thickness (np.array): (*)
+    """
     sl_groups, independent_group = separate_same_line_group(nodes_pos, edges_indices)
 
     revised_edges_indices = np.empty((0, 2), int)
@@ -336,8 +343,13 @@ def separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
 
 
 def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
-    # 同じノードの排除，[1,1]などのエッジの排除，エッジのソートなどを行う
+    """同じ座標を示すノードの排除，[1,1]などのエッジの排除，エッジの[2,1]を[1,2]にするなどのソートなどを行う
 
+    Args:
+        nodes_pos (np.array): (*,2)
+        edges_indices (np.array): (*,2)
+        edges_thickness (np.array): (*)
+    """
     # edge_indicesをaxis1方向にソートする．
     edges_indices = np.sort(edges_indices, axis=1)
     # 同じ位置にあるノードのedge_indiceにおける番号を統一する
@@ -396,3 +408,48 @@ def conprocess_seperate_edge_indice_procedure(condition_input_nodes, condition_o
         processed_edges_thickness[target_index] = t
 
     return input_nodes, output_nodes, frozen_nodes, processed_edges_thickness
+
+
+def seperate_cross_line_procedure(nodes_pos, edges_indices, edges_thickness):
+    """交差しているエッジについて，交差点を新しいノードにし，エッジ分割を行う
+
+    Args:
+        nodes_pos (np.array): (*,2)
+        edges_indices (np.array): (*,2)
+        edges_thickness (np.array): (*)
+    """
+    print(nodes_pos.shape, edges_indices.shape, edges_thickness.shape)
+    edge_info = np.concatenate([edges_indices, edges_thickness.reshape(-1, 1)], axis=1)  # edge_indiceとedge_thicknessを結合した
+
+    edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
+    edge_index_combinations = [pair for pair in itertools.combinations(np.arange(len(edge_points)), 2)]
+    edge_points_combinations = [pair for pair in itertools.combinations(edge_points, 2)]
+    each_edge_add_points = dict([(i, edges_indices[i].tolist()) for i in range(len(edge_points))])
+    for edge_index, edge_points in zip(edge_index_combinations, edge_points_combinations):
+        cross, cross_point = calc_cross_point(edge_points[0][0], edge_points[0][1], edge_points[1][0], edge_points[1][1])
+        if cross:  # 交差しているとき
+            nodes_pos = np.vstack((nodes_pos, cross_point))  # ノード追加
+            each_edge_add_points[edge_index[0]].append(len(nodes_pos) - 1)  # 各エッジに追加する予定のノードのindexをdictに追加している
+            each_edge_add_points[edge_index[1]].append(len(nodes_pos) - 1)  # 各エッジに追加する予定のノードのindexをdictに追加している
+    remove_edge_index = []
+    # 一直線上に存在するnode_posをグループ分けし，x座標順に並べる
+    for edge_index, node_index_group in each_edge_add_points.items():
+        if len(node_index_group) != 2:  # 分割されたエッジを示している場合
+            edge_thickness = edges_thickness[edge_index]
+            # x座標でソートする場合，refer_index=0.y座標の時，1.
+            refer_index = 0 if nodes_pos[edges_indices[edge_index][0]][0] != nodes_pos[edges_indices[edge_index][1]][0] else 1
+            index_order = np.argsort([nodes_pos[node_index][refer_index] for node_index in node_index_group])
+            node_index_order_group = np.array(node_index_group)[index_order]  # 座標順にソートされたノードのインデックス
+            unjointed_edge_info = np.array([[node_index_order_group[i], node_index_order_group[i + 1], edge_thickness] for i in range(len(node_index_order_group) - 1)])
+            edge_info = np.append(edge_info, unjointed_edge_info, axis=0)  # 分割されたエッジを追加する
+
+            remove_edge_index.append(edge_index)
+
+    # 後処理で必要なのは，ソート，重複取り消し，同じノード部分の取り消し
+    edge_info = np.delete(edge_info, remove_edge_index, 0)
+
+    processed_edges_indices = edge_info[:, :2].astype(int)
+    processed_edges_thickness = edge_info[:, 2]
+    processed_nodes_pos = nodes_pos
+
+    return processed_nodes_pos, processed_edges_indices, processed_edges_thickness
