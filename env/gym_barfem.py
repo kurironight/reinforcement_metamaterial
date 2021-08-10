@@ -19,7 +19,7 @@ class BarFemGym(MetamechGym):
         node_num = nodes_pos.shape[0]
         assert node_num >= np.max(
             edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
-        input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices)
+        input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(self.input_nodes, self.output_nodes, self.frozen_nodes, nodes_pos, edges_indices)
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
         efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
