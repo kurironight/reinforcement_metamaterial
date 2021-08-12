@@ -413,6 +413,23 @@ def conprocess_seperate_edge_indice_procedure(condition_input_nodes, condition_o
     return input_nodes, output_nodes, frozen_nodes, processed_edges_thickness
 
 
+def check_cross_graph(nodes_pos, edges_indices):
+    """グラフ内に交差しているエッジがあるかどうかをチェックする
+
+    Args:
+        nodes_pos (np.array): (*,2)
+        edges_indices (np.array): (*,2)
+    """
+    edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
+    edge_points_combinations = [pair for pair in itertools.combinations(edge_points, 2)]
+    for edge_points in edge_points_combinations:
+        cross, cross_point = calc_cross_point(edge_points[0][0], edge_points[0][1], edge_points[1][0], edge_points[1][1])
+        if cross:  # 交差しているとき
+            return True
+
+    return False
+
+
 def seperate_cross_line_procedure(nodes_pos, edges_indices, edges_thickness):
     """交差しているエッジについて，交差点を新しいノードにし，エッジ分割を行う
 
