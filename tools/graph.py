@@ -550,3 +550,20 @@ def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_n
     ax.autoscale()
     plt.savefig(save_path)
     plt.close()
+
+
+def calc_length(node1_pos_x, node1_pos_y, node2_pos_x, node2_pos_y):
+    return np.sqrt(np.power((node1_pos_x - node2_pos_x), 2) + np.power((node1_pos_y - node2_pos_y), 2))
+
+
+def calc_volume(nodes_pos, edges_indices, edges_thickness):
+    """グラフ構造が指定面積を占有している割合をエッジの太さ×長さを以ってして計算し，出力する
+
+    Args:
+        nodes_pos (np.array): (*,2)
+        edges_indices (np.array): (*,2)
+        edges_thickness (np.array): (*)
+    """
+    edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
+    lengths = [calc_length(i[0][0], i[0][1], i[1][0], i[1][1]) for i in edge_points]
+    return np.sum(lengths * edges_thickness)
