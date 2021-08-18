@@ -6,7 +6,7 @@ import numpy as np
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
-def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement", tmax=10000, eps=1.0e-8):
+def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement", tmax=100000, eps=1.0e-11):
     """バーFEMを行う
 
     Args:
@@ -16,8 +16,8 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
         input_nodes (list): 変位を入力するノードを指定している
         input_vectors (np.array): 入力する変位(or 力)を指定している
         frozen_nodes (list)): 固定しているノードを指定している
-        tmax (int, optional): 共益勾配法のステップ数. Defaults to 1000.
-        eps (double, optional): 共益勾配法の収束条件. Defaults to 1.0e-8.
+        tmax (int, optional): 共益勾配法のステップ数. Defaults to 100000.
+        eps (double, optional): 共益勾配法の収束条件. Defaults to 1.0e-11.
         mode(str): 強制変位か外力の条件の時の有限要素法を扱う．強制変位の時は"displacement",外力の時は"force"とする．
 
     Returns:
