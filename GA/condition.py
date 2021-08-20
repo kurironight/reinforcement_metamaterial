@@ -73,7 +73,7 @@ def condition():
     #    [origin_edges_indices, [[81, 68], [68, 9]]])
     origin_input_nodes = [84]
     origin_input_vectors = np.array([
-        [0., -0.1]
+        [0., -0.01]
     ])
 
     origin_output_nodes = [68]
