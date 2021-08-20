@@ -2,11 +2,12 @@ import ctypes as ct
 import ctypes.util
 from numpy.ctypeslib import ndpointer
 import numpy as np
+from tools.graph import calc_length
 
 libc = ct.cdll.LoadLibrary("FEM/barfem.so")
 
 
-def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement", tmax=100000, eps=1.0e-11):
+def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors, frozen_nodes, mode="displacement", slender=False, tmax=100000, eps=1.0e-11):
     """バーFEMを行う
 
     Args:
@@ -23,6 +24,11 @@ def barfem(nodes_pos, edges_indices, edges_thickness, input_nodes, input_vectors
     Returns:
         [np.array]: 各要素の変位を示している．
     """
+
+    if slender:  # スレンダー比を考慮し，edge_thicknessが各エッジの太さに対して1/10を守るように設定する
+        edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
+        lengths = np.array([calc_length(i[0][0], i[0][1], i[1][0], i[1][1]) for i in edge_points])
+        edges_thickness = edges_thickness * lengths / 10
 
     node_num = nodes_pos.shape[0]
     edge_num = edges_indices.shape[0]
