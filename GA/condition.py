@@ -85,3 +85,11 @@ def condition():
 
     return origin_nodes_positions, origin_edges_indices, origin_input_nodes,\
         origin_input_vectors, origin_output_nodes, origin_output_vectors, origin_frozen_nodes
+
+
+def condition_only_input_output():
+    origin_nodes_positions, origin_edges_indices, origin_input_nodes,\
+        origin_input_vectors, origin_output_nodes, origin_output_vectors, _ = condition()
+
+    return origin_nodes_positions, origin_edges_indices, origin_input_nodes,\
+        origin_input_vectors, origin_output_nodes, origin_output_vectors, []

@@ -24,8 +24,10 @@ def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origi
     new_frozen_nodes = np.arange(
         len(origin_frozen_nodes)) + len(origin_input_nodes) + len(origin_output_nodes)
 
-    new_node_pos = origin_nodes_positions[np.concatenate(
-        [origin_input_nodes, origin_output_nodes, origin_frozen_nodes])]
+    if origin_frozen_nodes != []:
+        new_node_pos = origin_nodes_positions[np.concatenate([origin_input_nodes, origin_output_nodes, origin_frozen_nodes])]
+    else:
+        new_node_pos = origin_nodes_positions[np.concatenate([origin_input_nodes, origin_output_nodes])]
 
     new_edges_indices = make_main_edges_indices(
         origin_edges_indices, origin_input_nodes, origin_output_nodes, origin_frozen_nodes)
@@ -45,7 +47,10 @@ def make_main_edges_indices(edges_indices, input_nodes, output_nodes, frozen_nod
     新しいedges_indicesを作成する．
     また，新しいノード番号は入力ノード，出力ノード，固定ノードの順に0,1,2,3となる．
     """
-    valid_nodes = np.concatenate([input_nodes, output_nodes, frozen_nodes])
+    if frozen_nodes != []:
+        valid_nodes = np.concatenate([input_nodes, output_nodes, frozen_nodes])
+    else:
+        valid_nodes = np.concatenate([input_nodes, output_nodes])
     # edges_indicesのうち，初期エッジ情報のみを抽出する
     edges_bool = np.isin(edges_indices, valid_nodes)
     edges_bool = edges_bool[:, 0] & edges_bool[:, 1]
