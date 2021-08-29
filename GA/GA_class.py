@@ -1,6 +1,6 @@
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
     CompoundOperator, SBX, HUX, PM, BitFlip
-from .condition import condition
+from .condition import condition, condition_only_input_output
 from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
@@ -14,14 +14,14 @@ from FEM.bar_fem import barfem
 
 class Barfem_GA(Problem):
 
-    def __init__(self, node_num, max_edge_thickness=0.05, min_edge_thickness=0.01):
+    def __init__(self, node_num, max_edge_thickness=0.05, min_edge_thickness=0.01, condition_edge_thickness=0.05):
+        self.condition_edge_thickness = condition_edge_thickness
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
-            = make_main_node_edge_info(*condition(), condition_edge_thickness=0.05)  # スレンダー比を考慮し，長さ方向に対して1/20の値の幅にした
+            = make_main_node_edge_info(*condition(), condition_edge_thickness=self.condition_edge_thickness)  # スレンダー比を考慮し，長さ方向に対して1/20の値の幅にした
 
-        self.node_num = node_num
+        self.node_num = node_num  # 条件ノード込のノードの数
         condition_node_num = self.condition_nodes_pos.shape[0]
-        assert self.node_num > condition_node_num, "node_num should be bigger than condition node num {}".format(condition_node_num)
         self.gene_node_pos_num = (node_num - condition_node_num) * 2
         self.gene_edge_thickness_num = int(node_num * (node_num - 1) / 2)
         self.gene_edge_indices_num = self.gene_edge_thickness_num
@@ -50,16 +50,9 @@ class Barfem_GA(Problem):
 
     def objective(self, solution):
         # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
-        gene_nodes_pos, gene_edges_thickness, gene_adj_element = self.convert_var_to_arg(solution.variables)
-        return self.calculate_efficiency(gene_nodes_pos, gene_edges_thickness, gene_adj_element)
+        return self.calculate_efficiency(*self.convert_var_to_arg(solution.variables))
 
-    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
-        # make edge_indices
-        edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
-
-        # make nodes_pos
-        nodes_pos = np.concatenate([self.condition_nodes_pos, gene_nodes_pos])
-
+    def return_score(self, nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix):
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -122,7 +115,7 @@ class Barfem_GA(Problem):
                 # efficiencyを計算する
                 input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
                 displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                      self.input_vectors, frozen_nodes, mode='displacement')
+                                      self.input_vectors, frozen_nodes, mode='displacement', slender=True)
 
                 efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
@@ -133,3 +126,57 @@ class Barfem_GA(Problem):
                 np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
 
         return float(efficiency)
+
+    def calculate_efficiency(self, gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
+        # make edge_indices
+        edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
+
+        # make nodes_pos
+        nodes_pos = np.concatenate([self.condition_nodes_pos, gene_nodes_pos])
+
+        return self.return_score(nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix)
+
+
+class IncrementalNodeIncrease_GA(Barfem_GA):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5):
+        self.input_output_node_num = 2  # 入力ノードと出力ノードの合計数
+        super(IncrementalNodeIncrease_GA, self).__init__(free_node_num + fix_node_num + self.input_output_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        self.input_output_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
+            self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
+            = make_main_node_edge_info(*condition_only_input_output())
+        self.fix_node_num = fix_node_num
+        self.free_node_num = free_node_num
+        self.gene_node_pos_num = self.free_node_num * 2 + self.fix_node_num
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Integer(0, 1)  # 隣接行列を指す
+
+    def convert_var_to_arg(self, vars):
+        free_nodes_pos = np.array(vars[0:self.free_node_num * 2])
+        free_nodes_pos = free_nodes_pos.reshape([self.free_node_num, 2])
+        fix_nodes_pos = vars[self.free_node_num * 2:self.gene_node_pos_num]
+        edges_thickness = vars[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num]
+        adj_element = vars[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num]
+        return free_nodes_pos, fix_nodes_pos, edges_thickness, adj_element
+
+    def calculate_efficiency(self, gene_nodes_pos, gene_fix_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
+        # make nodes_pos
+        gene_fix_nodes_pos = np.array(gene_fix_nodes_pos).reshape([self.fix_node_num, 1])
+        gene_fix_nodes_pos = np.concatenate([gene_fix_nodes_pos, np.zeros((self.fix_node_num, 1))], 1)
+        nodes_pos = np.concatenate([self.input_output_nodes_pos, gene_fix_nodes_pos, gene_nodes_pos])
+
+        # make edge_indices
+        self.condition_nodes_pos = np.concatenate([self.input_output_nodes_pos, gene_fix_nodes_pos])
+        self.frozen_nodes = np.arange(self.input_output_node_num, self.input_output_node_num + self.fix_node_num)
+        frozen_sort_nodes = self.frozen_nodes[np.argsort(nodes_pos[self.frozen_nodes][:, 0])]
+        frozen_edge_indices_1 = frozen_sort_nodes[1:]
+        frozen_edge_indices_2 = frozen_sort_nodes[:-1]
+        self.condition_edges_indices = np.stack([frozen_edge_indices_1, frozen_edge_indices_2], 1)  # 固定ノード間のedge_indicesを作成
+        self.condition_edges_indices = np.sort(np.array(self.condition_edges_indices), axis=1)  # [[1,2],[2,3]]とか，sortされた状態になっているようにする
+        edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
+        self.frozen_nodes = self.frozen_nodes.tolist()
+        self.condition_edges_thickness = np.ones(self.condition_edges_indices.shape[0]) * self.condition_edge_thickness
+
+        return self.return_score(nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix)
