@@ -311,7 +311,7 @@ def find_edge_indice_index(target_edges_indice, ref_edge_indices):
 
 
 def find_nodes_pos_index(target_node_pos, ref_nodes_pos):
-    return np.argwhere((ref_nodes_pos[:, 0] == target_node_pos[0]) & (ref_nodes_pos[:, 1] == target_node_pos[1])).squeeze()
+    return np.min(np.argwhere((ref_nodes_pos[:, 0] == target_node_pos[0]) & (ref_nodes_pos[:, 1] == target_node_pos[1])))
 
 
 def separate_same_line_procedure(nodes_pos, edges_indices, edges_thickness):
@@ -373,6 +373,7 @@ def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
     ref_processed_edges_indices = processed_edges_indices.copy()
 
     # edge_indiceの内，被りがあるものを除去する
+    processed_edges_indices = np.sort(processed_edges_indices, axis=1)
     processed_edges_indices = np.unique(np.array(processed_edges_indices), axis=0)
 
     # 除去したもののedge_thickを除去する
@@ -523,13 +524,13 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     return efficiency
 
 
-def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False):
+def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, slender=True):
     """グラフを図示
     Args:
         save_path (str, optional): 図を保存するパス.
         display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
     """
-    edge_size = 30  # 図示する時のエッジの太さ
+    edge_size = 10  # 図示する時のエッジの太さ
     marker_size = 40  # 図示するときのノードのサイズ
     character_size = 20  # ノードの文字のサイズ
 

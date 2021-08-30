@@ -120,6 +120,7 @@ class Barfem_GA(Problem):
                 efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=False)
                 np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
                 np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
