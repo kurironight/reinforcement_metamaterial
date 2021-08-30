@@ -52,7 +52,7 @@ class Barfem_GA(Problem):
         # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
         return self.calculate_efficiency(*self.convert_var_to_arg(solution.variables))
 
-    def return_score(self, nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix):
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -69,10 +69,6 @@ class Barfem_GA(Problem):
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
         else:
-            # make edges_thickness
-            edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
-                                                          self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
-
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
             # 傾きが一致するものをグループ分けし，エッジ分割を行う．
@@ -135,7 +131,11 @@ class Barfem_GA(Problem):
         # make nodes_pos
         nodes_pos = np.concatenate([self.condition_nodes_pos, gene_nodes_pos])
 
-        return self.return_score(nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix)
+        # make edge_thickness
+        edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
+                                                      self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
+
+        return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
 
 
 class IncrementalNodeIncrease_GA(Barfem_GA):
@@ -148,6 +148,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         self.fix_node_num = fix_node_num
         self.free_node_num = free_node_num
         self.gene_node_pos_num = self.free_node_num * 2 + self.fix_node_num
+        self.frozen_nodes = np.arange(self.input_output_node_num, self.input_output_node_num + self.fix_node_num).tolist()
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
@@ -170,14 +171,16 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
 
         # make edge_indices
         self.condition_nodes_pos = np.concatenate([self.input_output_nodes_pos, gene_fix_nodes_pos])
-        self.frozen_nodes = np.arange(self.input_output_node_num, self.input_output_node_num + self.fix_node_num)
-        frozen_sort_nodes = self.frozen_nodes[np.argsort(nodes_pos[self.frozen_nodes][:, 0])]
+        frozen_sort_nodes = np.array(self.frozen_nodes)[np.argsort(nodes_pos[self.frozen_nodes][:, 0])]
         frozen_edge_indices_1 = frozen_sort_nodes[1:]
         frozen_edge_indices_2 = frozen_sort_nodes[:-1]
         self.condition_edges_indices = np.stack([frozen_edge_indices_1, frozen_edge_indices_2], 1)  # 固定ノード間のedge_indicesを作成
         self.condition_edges_indices = np.sort(np.array(self.condition_edges_indices), axis=1)  # [[1,2],[2,3]]とか，sortされた状態になっているようにする
         edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
-        self.frozen_nodes = self.frozen_nodes.tolist()
         self.condition_edges_thickness = np.ones(self.condition_edges_indices.shape[0]) * self.condition_edge_thickness
 
-        return self.return_score(nodes_pos, edges_indices, gene_edges_thickness, np_save_dir, cross_fix)
+        # make edge_thickness
+        edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
+                                                      self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
+
+        return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
