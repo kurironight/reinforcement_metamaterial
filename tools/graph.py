@@ -311,6 +311,8 @@ def find_edge_indice_index(target_edges_indice, ref_edge_indices):
 
 
 def find_nodes_pos_index(target_node_pos, ref_nodes_pos):
+    # target_node_posがref_node_posのどこにあるのかを求める関数．
+    # 複数同じnode_posが存在する場合，一番indexの小さいものを出力する．
     return np.min(np.argwhere((ref_nodes_pos[:, 0] == target_node_pos[0]) & (ref_nodes_pos[:, 1] == target_node_pos[1])))
 
 
@@ -357,7 +359,7 @@ def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
     # 同じ位置にあるノードのedge_indiceにおける番号を統一する
     remove_node_index = np.empty(0, int)
     for node_index, node_pos in enumerate(nodes_pos):
-        same_index = np.argwhere([np.allclose(node_pos, ref_node_pos) for ref_node_pos in nodes_pos])
+        same_index = np.argwhere([np.array_equal(node_pos, ref_node_pos) for ref_node_pos in nodes_pos])
         if same_index.shape[0] != 1:
             ident_node_index = min(same_index)
             erased_node_index = np.setdiff1d(same_index, ident_node_index)
@@ -369,11 +371,11 @@ def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
     processed_nodes_pos = np.delete(nodes_pos, remove_node_index, 0)  # 被りがないnode_pos
     processed_edges_indices = edges_indices.copy()
     for i, target_node_pos in enumerate(processed_nodes_pos):
-        processed_edges_indices[edges_indices == np.min(find_nodes_pos_index(target_node_pos, ref_nodes_pos))] = i
-    ref_processed_edges_indices = processed_edges_indices.copy()
+        processed_edges_indices[edges_indices == find_nodes_pos_index(target_node_pos, ref_nodes_pos)] = i
 
     # edge_indiceの内，被りがあるものを除去する
     processed_edges_indices = np.sort(processed_edges_indices, axis=1)
+    ref_processed_edges_indices = processed_edges_indices.copy()
     processed_edges_indices = np.unique(np.array(processed_edges_indices), axis=0)
 
     # 除去したもののedge_thickを除去する
