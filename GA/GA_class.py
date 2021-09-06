@@ -1,4 +1,4 @@
-from platypus import NSGAII, Problem, nondominated, Integer, Real, \
+from platypus import NSGAII, Problem, nondominated, Integer, Real, Binary, \
     CompoundOperator, SBX, HUX, PM, BitFlip
 from .condition import condition, condition_only_input_output
 from tools.lattice_preprocess import make_main_node_edge_info
@@ -34,7 +34,7 @@ class Barfem_GA(Problem):
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
-            Integer(0, 1)  # 隣接行列を指す
+            Binary(1)  # 隣接行列を指す
         self.penalty_value = -10.0  # efficiencyに関するペナルティの値
         self.penalty_cross_node_value = -10.0  # 条件ノードが連結していないときの交差ノード数の
 
@@ -46,6 +46,7 @@ class Barfem_GA(Problem):
         nodes_pos = nodes_pos.reshape([int(self.gene_node_pos_num / 2), 2])
         edges_thickness = vars[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num]
         adj_element = vars[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num]
+        adj_element = np.array(adj_element).astype(np.int).squeeze()
         return nodes_pos, edges_thickness, adj_element
 
     def objective(self, solution):
@@ -162,6 +163,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         fix_nodes_pos = vars[self.free_node_num * 2:self.gene_node_pos_num]
         edges_thickness = vars[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num]
         adj_element = vars[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num]
+        adj_element = np.array(adj_element).astype(np.int).squeeze()
         return free_nodes_pos, fix_nodes_pos, edges_thickness, adj_element
 
     def calculate_efficiency(self, gene_nodes_pos, gene_fix_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
