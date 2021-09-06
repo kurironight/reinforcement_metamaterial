@@ -4,7 +4,7 @@ from .condition import condition, condition_only_input_output
 from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
-    remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph
+    remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph, count_cross_points
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
@@ -150,6 +150,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         self.gene_node_pos_num = self.free_node_num * 2 + self.fix_node_num
         self.frozen_nodes = np.arange(self.input_output_node_num, self.input_output_node_num + self.fix_node_num).tolist()
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
+        self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
@@ -184,3 +185,72 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
 
         return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
+
+
+class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5):
+        super(ConstraintIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 1)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Integer(0, 1)  # 隣接行列を指す
+        self.constraints[:] = "<=0"
+        self.penalty_constraint_value = 10000
+
+    def evaluate(self, solution):
+        [efficiency, cross_point_number] = self.objective(solution)
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number]
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        # 条件ノードが含まれている部分グラフを抽出
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+        condition_node_list = self.input_nodes + self.output_nodes + self.frozen_nodes
+
+        trigger = 0  # 条件ノードが全て接続するグラフが存在するとき，トリガーを発動する
+        for c in nx.connected_components(G):
+            sg = G.subgraph(c)  # 部分グラフ
+            if set(condition_node_list) <= set(sg.nodes):  # 条件ノードが全て含まれているグラフを抽出する
+                edges_indices = np.array(sg.edges)
+                trigger = 1
+                break
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+        else:
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
+            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
+                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
+            if cross_point_num != 0:
+                efficiency = self.penalty_value
+            else:
+                # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+                input_nodes, output_nodes, frozen_nodes, processed_edges_thickness \
+                    = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                                self.condition_edges_indices, self.condition_edges_thickness,
+                                                                processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+                # efficiencyを計算する
+                input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+                displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                      self.input_vectors, frozen_nodes, mode='displacement')
+                efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=False)
+                np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
+                np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
+                np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
+
+        return float(efficiency), cross_point_num

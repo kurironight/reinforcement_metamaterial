@@ -1,7 +1,8 @@
+from numpy.core.numeric import _cross_dispatcher
 from platypus import NSGAII, DTLZ2, ProcessPoolEvaluator
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
-    CompoundOperator, SBX, HUX, UM, BitFlip, GeneticAlgorithm
-from GA.GA_class import Barfem_GA
+    CompoundOperator, SBX, HUX, UM, BitFlip, GeneticAlgorithm, PM
+from GA.GA_class import *
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,15 +27,19 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     # define the problem definition
     save_dir = "GA/result"
-    node_num = 85
+    node_num = 2 + 2 + 2
+    #node_num = 40
     parent = (node_num * 2 + int(node_num * (node_num - 1) / 2) * 2)
+    #parent = 12
     generation = 5000
-    save_interval = 10
+    save_interval = 100
 
     PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
     os.makedirs(PATH, exist_ok=False)
+    #PATH = os.path.join(save_dir, "test")
+    #os.makedirs(PATH, exist_ok=True)
 
-    problem = Barfem_GA(node_num)
+    problem = ConstraintIncrementalNodeIncrease_GA(2, 2)
 
     history = []
 
@@ -68,6 +73,8 @@ if __name__ == "__main__":
 
             if algorithm.nfe / parent % save_interval == 0:
                 save_dir = os.path.join(PATH, str(i + 1))
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
                 """
                 max_index = efficiency_results.index(max_efficiency)
                 max_solution = nondominated_solutions[max_index]
@@ -75,9 +82,7 @@ if __name__ == "__main__":
                 max_solution = algorithm.fittest
 
                 vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
-                gene_nodes_pos, gene_edges_thickness, gene_adj_element = problem.convert_var_to_arg(vars)
-                problem.calculate_efficiency(gene_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_path=save_dir)
-
+                problem.calculate_efficiency(*problem.convert_var_to_arg(vars), np_save_dir=save_dir)
                 np.save(os.path.join(save_dir, "history.npy"), history)
 
     elapsed_time = time.time() - start
