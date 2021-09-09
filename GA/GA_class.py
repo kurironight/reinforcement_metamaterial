@@ -243,19 +243,21 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
 
             cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
 
+            """ IncrementalNodeIncrease_GAとの正確な対照実験の時の為の処理
             if cross_point_num != 0:
                 efficiency = self.penalty_value
             else:
-                # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
-                input_nodes, output_nodes, frozen_nodes, processed_edges_thickness \
-                    = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
-                                                                self.condition_edges_indices, self.condition_edges_thickness,
-                                                                processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-                # efficiencyを計算する
-                input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
-                displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                      self.input_vectors, frozen_nodes, mode='displacement')
-                efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+                """
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness \
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                  self.input_vectors, frozen_nodes, mode='displacement')
+            efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
