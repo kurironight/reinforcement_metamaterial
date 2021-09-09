@@ -159,7 +159,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
-            Integer(0, 1)  # 隣接行列を指す
+            Binary(1)  # 隣接行列を指す
 
     def convert_var_to_arg(self, vars):
         free_nodes_pos = np.array(vars[0:self.free_node_num * 2])
@@ -218,7 +218,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
-            Integer(0, 1)  # 隣接行列を指す
+            Binary(1)  # 隣接行列を指す
         self.constraints[:] = "<=0"
         self.penalty_constraint_value = 10000
 
