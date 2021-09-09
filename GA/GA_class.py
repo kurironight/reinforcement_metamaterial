@@ -53,7 +53,7 @@ class Barfem_GA(Problem):
         # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
         return self.calculate_efficiency(*self.convert_var_to_arg(solution.variables))
 
-    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+    def calculate_trigger(self, nodes_pos, edges_indices):  # barfemをかけるか，かけずにスコアを返すかの判断を行う関数
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -67,6 +67,10 @@ class Barfem_GA(Problem):
                 edges_indices = np.array(sg.edges)
                 trigger = 1
                 break
+        return trigger
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
         else:
@@ -166,6 +170,23 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         adj_element = np.array(adj_element).astype(np.int).squeeze()
         return free_nodes_pos, fix_nodes_pos, edges_thickness, adj_element
 
+    def calculate_trigger(self, nodes_pos, edges_indices):  # 全てのノードが一つのグラフに収まる時にのみbarfemを適用するようにする
+        # 条件ノードが含まれている部分グラフを抽出
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+        condition_node_list = self.input_nodes + self.output_nodes + self.frozen_nodes
+
+        trigger = 0  # 条件ノードが全て接続するグラフが存在するとき，トリガーを発動する
+        for c in nx.connected_components(G):
+            sg = G.subgraph(c)  # 部分グラフ
+            if set(condition_node_list) <= set(sg.nodes):  # 条件ノードが全て含まれているグラフを抽出する
+                if set(list(range(self.node_num))) <= set(sg.nodes):
+                    edges_indices = np.array(sg.edges)
+                    trigger = 1
+                    break
+        return trigger
+
     def calculate_efficiency(self, gene_nodes_pos, gene_fix_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
         # make nodes_pos
         gene_fix_nodes_pos = np.array(gene_fix_nodes_pos).reshape([self.fix_node_num, 1])
@@ -207,19 +228,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
         solution.constraints[:] = [cross_point_number]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        # 条件ノードが含まれている部分グラフを抽出
-        G = nx.Graph()
-        G.add_nodes_from(np.arange(len(nodes_pos)))
-        G.add_edges_from(edges_indices)
-        condition_node_list = self.input_nodes + self.output_nodes + self.frozen_nodes
-
-        trigger = 0  # 条件ノードが全て接続するグラフが存在するとき，トリガーを発動する
-        for c in nx.connected_components(G):
-            sg = G.subgraph(c)  # 部分グラフ
-            if set(condition_node_list) <= set(sg.nodes):  # 条件ノードが全て含まれているグラフを抽出する
-                edges_indices = np.array(sg.edges)
-                trigger = 1
-                break
+        trigger = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
