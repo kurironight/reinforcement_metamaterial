@@ -206,7 +206,6 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         # make edge_thickness
         edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
-
         return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
 
 
@@ -261,9 +260,14 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
-                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=False)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
                 np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
                 np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
                 np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
+                np.save(os.path.join(np_save_dir, "input_nodes.npy"), input_nodes)
+                np.save(os.path.join(np_save_dir, "input_vectors.npy"), self.input_vectors)
+                np.save(os.path.join(np_save_dir, "frozen_nodes.npy"), frozen_nodes)
+                np.save(os.path.join(np_save_dir, "output_nodes.npy"), output_nodes)
+                np.save(os.path.join(np_save_dir, "output_vectors.npy"), self.output_vectors)
 
         return float(efficiency), cross_point_num
