@@ -156,3 +156,4 @@ results/
 prior_thesis_results/
 *.txt
 *.pth
+*.pk
