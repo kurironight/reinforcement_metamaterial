@@ -170,7 +170,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
         adj_element = vars[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num]
         adj_element = np.array(adj_element).astype(np.int).squeeze()
         return free_nodes_pos, fix_nodes_pos, edges_thickness, adj_element
-
+    """
     def calculate_trigger(self, nodes_pos, edges_indices):  # 全てのノードが一つのグラフに収まる時にのみbarfemを適用するようにする
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()
@@ -187,6 +187,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
                     trigger = 1
                     break
         return trigger
+    """
 
     def calculate_efficiency(self, gene_nodes_pos, gene_fix_nodes_pos, gene_edges_thickness, gene_adj_element, np_save_dir=False, cross_fix=False):
         # make nodes_pos
@@ -213,7 +214,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
 class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.4, distance_threshold=0.05):
         super(ConstraintIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 1)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
@@ -224,9 +225,9 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
         self.distance_threshold = distance_threshold
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number] = self.objective(solution)
+        [efficiency, cross_point_number, erased_node_num] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number]
+        solution.constraints[:] = [cross_point_number, erased_node_num]
 
     def preprocess_node_joint_in_distance_threshold(self, nodes_pos):
         indexes = np.arange(nodes_pos.shape[0]).reshape((nodes_pos.shape[0], 1))
@@ -258,6 +259,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -293,6 +295,8 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
                                   self.input_vectors, frozen_nodes, mode='displacement')
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
@@ -305,4 +309,4 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
                 np.save(os.path.join(np_save_dir, "output_nodes.npy"), output_nodes)
                 np.save(os.path.join(np_save_dir, "output_vectors.npy"), self.output_vectors)
 
-        return float(efficiency), cross_point_num
+        return float(efficiency), cross_point_num, erased_node_num
