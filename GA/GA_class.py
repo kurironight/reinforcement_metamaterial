@@ -10,6 +10,7 @@ from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
 from FEM.bar_fem import barfem
+from tools.graph import calc_length
 
 
 class Barfem_GA(Problem):
@@ -210,7 +211,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
 
 
 class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.4, distance_threshold=0.05):
         super(ConstraintIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 1)
         self.directions[:] = Problem.MAXIMIZE
@@ -220,11 +221,37 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
             Binary(1)  # 隣接行列を指す
         self.constraints[:] = "<=0"
         self.penalty_constraint_value = 10000
+        self.distance_threshold = distance_threshold
 
     def evaluate(self, solution):
         [efficiency, cross_point_number] = self.objective(solution)
         solution.objectives[:] = [efficiency]
         solution.constraints[:] = [cross_point_number]
+
+    def preprocess_node_joint_in_distance_threshold(self, nodes_pos):
+        indexes = np.arange(nodes_pos.shape[0]).reshape((nodes_pos.shape[0], 1))
+        nodes_pos_info = np.concatenate([nodes_pos, indexes], axis=1)
+        while True:
+            ref_nodes_pos_info = nodes_pos_info[0]
+            ref_nodes_pos = ref_nodes_pos_info[:2]
+            nodes_pos_info = np.delete(nodes_pos_info, 0, 0)
+            lengths = [calc_length(i[0], i[1], ref_nodes_pos[0], ref_nodes_pos[1]) for i in nodes_pos_info[:, :2]]
+            near_node_info_index = np.argwhere(np.array(lengths) < self.distance_threshold)
+            if len(near_node_info_index) >= 1:
+                same_node_pos_info_group = np.concatenate([[ref_nodes_pos_info], nodes_pos_info[near_node_info_index.squeeze()].reshape([-1, 3])])
+                nodes_pos_info = np.delete(nodes_pos_info, near_node_info_index.squeeze(), 0)
+                same_node_pos_info_group_indexes = same_node_pos_info_group[:, 2].astype(np.int)
+                condition_indexes = []
+                for i in same_node_pos_info_group[:, :2]:
+                    target_index = np.argwhere((self.condition_nodes_pos[:, 0] == i[0]) & (self.condition_nodes_pos[:, 1] == i[1]))
+                    if target_index.size != 0:
+                        condition_indexes.append(target_index)
+                if len(condition_indexes) != 0:
+                    ref_nodes_pos = self.condition_nodes_pos[np.min(condition_indexes)]
+                nodes_pos[same_node_pos_info_group_indexes] = ref_nodes_pos
+            if nodes_pos_info.shape[0] == 0:
+                break
+        return nodes_pos
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger = self.calculate_trigger(nodes_pos, edges_indices)
@@ -232,6 +259,14 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
         else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+                condition_nodes_pos = []
+                for i in nodes_pos:
+                    if np.any((self.condition_nodes_pos[:, 0] == i[0]) & (self.condition_nodes_pos[:, 1] == i[1])):
+                        condition_nodes_pos.append(i)
+                self.condition_nodes_pos = np.array(nodes_pos[0: self.condition_nodes_pos.shape[0]])
+
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
             # 傾きが一致するものをグループ分けし，エッジ分割を行う．
@@ -248,7 +283,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
             else:
                 """
             # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
-            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness \
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
                                                             self.condition_edges_indices, self.condition_edges_thickness,
                                                             processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
