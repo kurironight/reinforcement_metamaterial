@@ -212,7 +212,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
 
 
 class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.4, distance_threshold=0.05):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5, distance_threshold=0.05):
         super(ConstraintIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
         self.directions[:] = Problem.MAXIMIZE
