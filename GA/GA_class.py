@@ -14,17 +14,18 @@ from tools.graph import calc_length
 
 
 class Barfem_GA(Problem):
-
-    def __init__(self, node_num, max_edge_thickness=0.05, min_edge_thickness=0.01, condition_edge_thickness=0.05):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.05, min_edge_thickness=0.01, condition_edge_thickness=0.05):
         self.condition_edge_thickness = condition_edge_thickness
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
             = make_main_node_edge_info(*condition(), condition_edge_thickness=self.condition_edge_thickness)  # スレンダー比を考慮し，長さ方向に対して1/20の値の幅にした
-
-        self.node_num = node_num  # 条件ノード込のノードの数
+        self.fix_node_num = fix_node_num
+        self.free_node_num = free_node_num
+        self.input_output_node_num = 2  # 入力ノードと出力ノードの合計数
+        self.node_num = free_node_num + fix_node_num + self.input_output_node_num  # 条件ノード込のノードの数
         condition_node_num = self.condition_nodes_pos.shape[0]
-        self.gene_node_pos_num = (node_num - condition_node_num) * 2
-        self.gene_edge_thickness_num = int(node_num * (node_num - 1) / 2)
+        self.gene_node_pos_num = (self.node_num - condition_node_num) * 2
+        self.gene_edge_thickness_num = int(self.node_num * (self.node_num - 1) / 2)
         self.gene_edge_indices_num = self.gene_edge_thickness_num
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
         self.max_edge_thickness = max_edge_thickness
@@ -140,19 +141,15 @@ class Barfem_GA(Problem):
         # make edge_thickness
         edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
-
         return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
 
 
 class IncrementalNodeIncrease_GA(Barfem_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5):
-        self.input_output_node_num = 2  # 入力ノードと出力ノードの合計数
-        super(IncrementalNodeIncrease_GA, self).__init__(free_node_num + fix_node_num + self.input_output_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(IncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         self.input_output_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness\
             = make_main_node_edge_info(*condition_only_input_output())
-        self.fix_node_num = fix_node_num
-        self.free_node_num = free_node_num
         self.gene_node_pos_num = self.free_node_num * 2 + self.fix_node_num
         self.frozen_nodes = np.arange(self.input_output_node_num, self.input_output_node_num + self.fix_node_num).tolist()
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1)
@@ -242,6 +239,8 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
                 same_node_pos_info_group = np.concatenate([[ref_nodes_pos_info], nodes_pos_info[near_node_info_index.squeeze()].reshape([-1, 3])])
                 nodes_pos_info = np.delete(nodes_pos_info, near_node_info_index.squeeze(), 0)
                 same_node_pos_info_group_indexes = same_node_pos_info_group[:, 2].astype(np.int)
+                # 条件ノードが近似グループの中に存在する場合，置換するnode_posを固定ノードのnode_posにする．
+                # もし複数条件ノードが存在する場合，一番indexが小さいノードのnode_posに置換する
                 condition_indexes = []
                 for i in same_node_pos_info_group[:, :2]:
                     target_index = np.argwhere((self.condition_nodes_pos[:, 0] == i[0]) & (self.condition_nodes_pos[:, 1] == i[1]))
@@ -284,6 +283,100 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
                 efficiency = self.penalty_value
             else:
                 """
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                  self.input_vectors, frozen_nodes, mode='displacement')
+            efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+                np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
+                np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
+                np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
+                np.save(os.path.join(np_save_dir, "input_nodes.npy"), input_nodes)
+                np.save(os.path.join(np_save_dir, "input_vectors.npy"), self.input_vectors)
+                np.save(os.path.join(np_save_dir, "frozen_nodes.npy"), frozen_nodes)
+                np.save(os.path.join(np_save_dir, "output_nodes.npy"), output_nodes)
+                np.save(os.path.join(np_save_dir, "output_vectors.npy"), self.output_vectors)
+
+        return float(efficiency), cross_point_num, erased_node_num
+
+
+class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5, distance_threshold=0.05):
+        super(FixnodeconstIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[:] = "<=0"
+        self.penalty_constraint_value = 10000
+        self.distance_threshold = distance_threshold
+        assert distance_threshold < float(1 / 8), "固定ノードが同じノードとして処理される"
+
+    def evaluate(self, solution):
+        [efficiency, cross_point_number, erased_node_num] = self.objective(solution)
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number, erased_node_num]
+
+    def preprocess_node_joint_in_distance_threshold(self, nodes_pos):
+        indexes = np.arange(nodes_pos.shape[0]).reshape((nodes_pos.shape[0], 1))
+        nodes_pos_info = np.concatenate([nodes_pos, indexes], axis=1)
+        while True:
+            ref_nodes_pos_info = nodes_pos_info[0]
+            ref_nodes_pos = ref_nodes_pos_info[:2]
+            nodes_pos_info = np.delete(nodes_pos_info, 0, 0)
+            lengths = [calc_length(i[0], i[1], ref_nodes_pos[0], ref_nodes_pos[1]) for i in nodes_pos_info[:, :2]]
+            near_node_info_index = np.argwhere(np.array(lengths) < self.distance_threshold)
+            if len(near_node_info_index) >= 1:
+                same_node_pos_info_group = np.concatenate([[ref_nodes_pos_info], nodes_pos_info[near_node_info_index.squeeze()].reshape([-1, 3])])
+                nodes_pos_info = np.delete(nodes_pos_info, near_node_info_index.squeeze(), 0)
+                same_node_pos_info_group_indexes = same_node_pos_info_group[:, 2].astype(np.int)
+                # 条件ノードが近似グループの中に存在する場合，置換するnode_posを固定ノードのnode_posにする．
+                # もし複数条件ノードが存在する場合，一番indexが小さいノードのnode_posに置換する
+                condition_indexes = []
+                for i in same_node_pos_info_group[:, :2]:
+                    target_index = np.argwhere((self.condition_nodes_pos[:, 0] == i[0]) & (self.condition_nodes_pos[:, 1] == i[1]))
+                    if target_index.size != 0:
+                        condition_indexes.append(target_index)
+                if len(condition_indexes) != 0:
+                    ref_nodes_pos = self.condition_nodes_pos[np.min(condition_indexes)]
+                nodes_pos[same_node_pos_info_group_indexes] = ref_nodes_pos
+            if nodes_pos_info.shape[0] == 0:
+                break
+        return nodes_pos
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
+        else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
+            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
+                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
             # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
             input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
