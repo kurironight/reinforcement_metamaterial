@@ -19,19 +19,21 @@ fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
 if __name__ == "__main__":
     # define the problem definition
     save_dir = "GA/result"
-    generation = 5
-    save_interval = 1
+    generation = 5000
+    save_interval = 100
+
+    parent_mult_value = 1  # 遺伝子個数に対する親の個数の比率
 
     # PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
     # os.makedirs(PATH, exist_ok=False)
-    PATH = os.path.join(save_dir, "test")
+    PATH = os.path.join(save_dir, "固定ノード固定の段階的GA")
     os.makedirs(PATH, exist_ok=True)
 
     start = time.time()
     # instantiate the optimization algorithm to run in parallel
     for index, (free_node_num, fix_node_num) in enumerate(zip(free_nodes_num, fix_nodes_num)):
-        node_num = 2 + free_node_num + fix_node_num
-        parent = (node_num * 2 + int(node_num * (node_num - 1) / 2) * 2)
+        problem = FixnodeconstIncrementalNodeIncrease_GA(free_node_num, fix_node_num)
+        parent = problem.nvars * parent_mult_value
         history = []
         GA_result_dir = os.path.join(PATH, "free_{}_fix_{}".format(free_node_num, fix_node_num))
         os.makedirs(GA_result_dir, exist_ok=True)
