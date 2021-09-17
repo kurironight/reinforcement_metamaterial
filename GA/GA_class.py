@@ -317,6 +317,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
