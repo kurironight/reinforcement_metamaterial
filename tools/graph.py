@@ -359,7 +359,7 @@ def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
     # 同じ位置にあるノードのedge_indiceにおける番号を統一する
     remove_node_index = np.empty(0, int)
     for node_index, node_pos in enumerate(nodes_pos):
-        same_index = np.argwhere([np.array_equal(node_pos, ref_node_pos) for ref_node_pos in nodes_pos])
+        same_index = np.argwhere([(np.allclose(node_pos, ref_node_pos) & np.allclose(ref_node_pos, node_pos)) for ref_node_pos in nodes_pos])  # np.array_equalの場合，予期せぬ挙動が発生する場合が存在する．
         if same_index.shape[0] != 1:
             ident_node_index = min(same_index)
             erased_node_index = np.setdiff1d(same_index, ident_node_index)
@@ -543,13 +543,12 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     return efficiency
 
 
-def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, slender=True):
+def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, edge_size=10):
     """グラフを図示
     Args:
         save_path (str, optional): 図を保存するパス.
         display_number (bool, optional): ノードに番号をつけるか付けないか. Defaults to False.
     """
-    edge_size = 10  # 図示する時のエッジの太さ
     marker_size = 40  # 図示するときのノードのサイズ
     character_size = 20  # ノードの文字のサイズ
 
