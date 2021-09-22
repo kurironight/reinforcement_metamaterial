@@ -11,6 +11,7 @@ import networkx as nx
 import os
 from FEM.bar_fem import barfem
 from tools.graph import calc_length
+from tools.save import save_graph_info_npy
 
 
 class Barfem_GA(Problem):
@@ -125,9 +126,9 @@ class Barfem_GA(Problem):
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=False)
-                np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
-                np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
-                np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
 
         return float(efficiency)
 
@@ -299,14 +300,9 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
-                np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
-                np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
-                np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
-                np.save(os.path.join(np_save_dir, "input_nodes.npy"), input_nodes)
-                np.save(os.path.join(np_save_dir, "input_vectors.npy"), self.input_vectors)
-                np.save(os.path.join(np_save_dir, "frozen_nodes.npy"), frozen_nodes)
-                np.save(os.path.join(np_save_dir, "output_nodes.npy"), output_nodes)
-                np.save(os.path.join(np_save_dir, "output_vectors.npy"), self.output_vectors)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
 
         return float(efficiency), cross_point_num, erased_node_num
 
@@ -394,13 +390,8 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
-                np.save(os.path.join(np_save_dir, "nodes_pos.npy"), processed_nodes_pos)
-                np.save(os.path.join(np_save_dir, "edges_indices.npy"), processed_edges_indices)
-                np.save(os.path.join(np_save_dir, "edges_thickness.npy"), processed_edges_thickness)
-                np.save(os.path.join(np_save_dir, "input_nodes.npy"), input_nodes)
-                np.save(os.path.join(np_save_dir, "input_vectors.npy"), self.input_vectors)
-                np.save(os.path.join(np_save_dir, "frozen_nodes.npy"), frozen_nodes)
-                np.save(os.path.join(np_save_dir, "output_nodes.npy"), output_nodes)
-                np.save(os.path.join(np_save_dir, "output_vectors.npy"), self.output_vectors)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
 
         return float(efficiency), cross_point_num, erased_node_num
