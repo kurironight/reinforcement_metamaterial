@@ -2,6 +2,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from FEM.make_structure import make_bar_structure
 
 
 def convert_edge_indices_to_adj(edges_indices, size=False):
@@ -586,3 +587,21 @@ def calc_volume(nodes_pos, edges_indices, edges_thickness):
     edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
     lengths = [calc_length(i[0][0], i[0][1], i[1][0], i[1][1]) for i in edge_points]
     return np.sum(lengths * edges_thickness)
+
+
+def render_pixel_graph(nodes_pos, edges_indices, edges_thickness, save_path, pixel):
+    edges = [[pixel * nodes_pos[edge_indice[0]], pixel * nodes_pos[edge_indice[1]],
+              edge_thickness * pixel]
+             for edge_indice, edge_thickness in zip(edges_indices, edges_thickness)]
+
+    rho = make_bar_structure(pixel, pixel, edges)
+
+    ny, nx = rho.shape
+    x = np.arange(0, nx + 1)  # x軸の描画範囲の生成。
+    y = np.arange(0, ny + 1)  # y軸の描画範囲の生成。
+    X, Y = np.meshgrid(x, y)
+    fig = plt.figure()
+    _ = plt.pcolormesh(X, Y, rho, cmap="binary")
+    plt.axis("off")
+    fig.savefig(save_path)
+    plt.close()

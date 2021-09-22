@@ -26,7 +26,7 @@ class BarFemGym(MetamechGym):
         return efficiency
 
     # 環境の描画
-    def render(self, save_path="image/image.png", display_number=False):
+    def render(self, save_path="image/image.png", display_number=False, edge_size=10):
         """グラフを図示
 
         Args:
@@ -39,4 +39,4 @@ class BarFemGym(MetamechGym):
 
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
-        render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number)
+        render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number, edge_size=edge_size)
