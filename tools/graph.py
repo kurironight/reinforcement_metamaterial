@@ -544,7 +544,7 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     return efficiency
 
 
-def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, edge_size=10):
+def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, edge_size=100):
     """グラフを図示
     Args:
         save_path (str, optional): 図を保存するパス.
