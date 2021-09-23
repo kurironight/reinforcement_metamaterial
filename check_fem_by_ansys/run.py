@@ -12,7 +12,7 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
 
     # C言語を用いたbarfem
     displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
-                          input_vectors, frozen_nodes, mode="force", tmax=tmax, eps=eps)
+                          input_vectors, frozen_nodes, mode="displacement", tmax=tmax, eps=eps)
 
     # APDLの設定
     mapdl = launch_mapdl()
@@ -49,8 +49,10 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
         mapdl.d(i + 1, "all", 0)
     # 外力設定
     for i, input_vector in enumerate(input_vectors):
-        mapdl.f(input_nodes[i] + 1, "FX", input_vector[0])
-        mapdl.f(input_nodes[i] + 1, "FY", input_vector[1])
+        #mapdl.f(input_nodes[i] + 1, "FX", input_vector[0])
+        #mapdl.f(input_nodes[i] + 1, "FY", input_vector[1])
+        mapdl.d(input_nodes[i] + 1, "UX", input_vector[0])
+        mapdl.d(input_nodes[i] + 1, "UY", input_vector[1])
     # 解析開始
     mapdl.solve()
     mapdl.finish()
