@@ -10,7 +10,7 @@ from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
 from FEM.bar_fem import barfem
-from tools.graph import calc_length
+from tools.graph import calc_length, calc_volume
 from tools.save import save_graph_info_npy
 
 
@@ -395,3 +395,105 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
                                     processed_edges_indices, processed_edges_thickness)
 
         return float(efficiency), cross_point_num, erased_node_num
+
+
+class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5, distance_threshold=0.05, constraint_volume=0.4):
+        super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[:] = "<=0"
+        self.constraints[4] = ">={}".str(constraint_volume)
+
+    def evaluate(self, solution):
+        [efficiency, cross_point_number, erased_node_num, invalid_edge_num, invalid_node_num, volume] = self.objective(solution)
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number, erased_node_num, invalid_edge_num, invalid_node_num, volume]
+
+    def count_invalid_edge(self, nodes_pos, edges_indices, input_nodes, frozen_nodes, free_nodes):
+        # 無意味なエッジの数を数える関数
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+
+        invalid_edge_num = 0
+
+        # 入力ノード-自由ノード-固定ノードや固定ノード-自由ノード-固定ノードなどの組み合わせを検知
+        input_frozen_nodes = input_nodes + frozen_nodes
+        for free_node in free_nodes:
+            adjacent_nodes = list(G.neighbors(free_node))
+            if set(adjacent_nodes) <= set(input_frozen_nodes):
+                print(free_node)
+                invalid_edge_num += len(adjacent_nodes)
+
+        # 入力ノード-固定ノードの組み合わせを検知
+        for input_node in input_nodes:
+            adjacent_nodes = list(G.neighbors(input_node))
+            l1_l2_and = list(set(adjacent_nodes) & set(frozen_nodes))
+            invalid_edge_num += len(l1_l2_and)
+
+        return invalid_edge_num
+
+    def count_invalid_node(self, nodes_pos, edges_indices, free_nodes):
+        # 自由ノードの中で，無駄な（次数が1しかないもの）ノードの数を数えるもの
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+
+        free_node_degree = [G.degree(free_node) for free_node in free_nodes]
+        penalty_free_node_num = np.count_nonzero(np.array(free_node_degree) < 2)
+        return penalty_free_node_num
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
+        else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
+            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
+                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                  self.input_vectors, frozen_nodes, mode='displacement')
+            efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
+            condition_nodes = input_nodes + output_nodes + frozen_nodes
+            free_nodes = list(set(list(range(nodes_pos.shape[0]))) ^ set(condition_nodes))
+            invalid_edge_num = self.count_invalid_edge(processed_nodes_pos, processed_edges_indices, input_nodes, frozen_nodes, free_nodes)
+            invalid_node_num = self.count_invalid_node(nodes_pos, edges_indices, free_nodes)
+
+            volume = calc_volume(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
+
+        return float(efficiency), cross_point_num, erased_node_num, invalid_edge_num, invalid_node_num, volume
