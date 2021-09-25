@@ -398,9 +398,9 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
 
 
 class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5, distance_threshold=0.05, constraint_volume=0.4):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_volume=0.3):
         super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
@@ -408,7 +408,7 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
         self.constraints[:] = "<=0"
-        self.constraints[4] = ">={}".str(constraint_volume)
+        self.constraints[4] = ">=" + str(constraint_volume)
 
     def evaluate(self, solution):
         [efficiency, cross_point_number, erased_node_num, invalid_edge_num, invalid_node_num, volume] = self.objective(solution)
@@ -428,7 +428,6 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         for free_node in free_nodes:
             adjacent_nodes = list(G.neighbors(free_node))
             if set(adjacent_nodes) <= set(input_frozen_nodes):
-                print(free_node)
                 invalid_edge_num += len(adjacent_nodes)
 
         # 入力ノード-固定ノードの組み合わせを検知
@@ -451,10 +450,13 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        volume = calc_volume(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
+            invalid_edge_num = self.penalty_constraint_value
+            invalid_node_num = self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -483,11 +485,9 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
 
             condition_nodes = input_nodes + output_nodes + frozen_nodes
-            free_nodes = list(set(list(range(nodes_pos.shape[0]))) ^ set(condition_nodes))
+            free_nodes = list(set(list(range(processed_nodes_pos.shape[0]))) ^ set(condition_nodes))
             invalid_edge_num = self.count_invalid_edge(processed_nodes_pos, processed_edges_indices, input_nodes, frozen_nodes, free_nodes)
             invalid_node_num = self.count_invalid_node(nodes_pos, edges_indices, free_nodes)
-
-            volume = calc_volume(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
