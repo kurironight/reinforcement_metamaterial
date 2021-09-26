@@ -15,12 +15,18 @@ max_free_node_num = 9
 free_nodes_num = np.arange(1, max_free_node_num + 1)
 fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
 
+"""
+# 単体実行用
+max_free_node_num = 9
+free_nodes_num = np.arange(max_free_node_num, max_free_node_num + 1)
+fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
+"""
 experient_num = 2
 
 if __name__ == "__main__":
     # define the problem definition
     save_dir = "GA/result"
-    generation = 300
+    generation = 1700
     save_interval = 10
 
     parent_mult_value = 10  # 遺伝子個数に対する親の個数の比率
