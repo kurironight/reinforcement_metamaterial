@@ -10,7 +10,7 @@ from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
 from FEM.bar_fem import barfem, barfem_anti, barfem_mapdl
-from tools.graph import calc_length, calc_volume
+from tools.graph import calc_length, calc_volume, calc_misses_stress
 from tools.save import save_graph_info_npy
 
 
@@ -550,7 +550,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_stress=0.3):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_stress=0.21):
         super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
@@ -573,7 +573,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
-            misses_stress = 1000000000000.0  # 適当，値を変えてやってみる
+            misses_stress = self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -601,16 +601,8 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
 
-            # ミーゼス応力を求める
-            stresses = stresses.reshape((-1, 6))
-            tensile = stresses[:, [0, 3]]
-            mage = stresses[:, [2, 5]]
-            rhox = tensile + mage
-            tauxy = stresses[:, [1, 4]]
-            sqrt = np.sqrt((rhox / 2)**2 + tauxy**2)
-            rho1 = rhox / 2 + sqrt
-            rho2 = rhox / 2 - sqrt
-            misses_stress = np.sqrt(1 / 2 * (rho1**2 + rho2**2 + (rho2 - rho1)**2))
+            misses_stress = calc_misses_stress(stresses)
+            misses_stress = np.max(misses_stress)  # 最大ミーゼス応力
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)

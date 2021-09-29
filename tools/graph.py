@@ -544,6 +544,20 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     return efficiency
 
 
+def calc_misses_stress(stresses):
+    # ミーゼス応力を求める
+    stresses = stresses.reshape((-1, 6))
+    tensile = stresses[:, [0, 3]]
+    mage = stresses[:, [2, 5]]
+    rhox = tensile + mage
+    tauxy = stresses[:, [1, 4]]
+    sqrt = np.sqrt((rhox / 2)**2 + tauxy**2)
+    rho1 = rhox / 2 + sqrt
+    rho2 = rhox / 2 - sqrt
+    misses_stress = np.sqrt(1 / 2 * (rho1**2 + rho2**2 + (rho2 - rho1)**2))
+    return misses_stress
+
+
 def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, edge_size=100):
     """グラフを図示
     Args:
