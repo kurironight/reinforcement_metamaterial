@@ -9,7 +9,7 @@ import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
-from FEM.bar_fem import barfem, barfem_mapdl
+from FEM.bar_fem import barfem, barfem_anti, barfem_mapdl
 from tools.graph import calc_length, calc_volume
 from tools.save import save_graph_info_npy
 
@@ -547,3 +547,76 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
                                     processed_edges_indices, processed_edges_thickness)
 
         return float(efficiency), cross_point_num, erased_node_num
+
+
+class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_stress=0.3):
+        super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[:] = "<=0"
+        self.constraints[2] = "<=" + str(constraint_stress)
+
+    def evaluate(self, solution):
+        [efficiency, cross_point_number, erased_node_num, misses_stress] = self.objective(solution)
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number, erased_node_num, misses_stress]
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
+            misses_stress = 1000000000000.0  # 適当，値を変えてやってみる
+        else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
+            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
+                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                                 self.input_vectors, frozen_nodes, mode='displacement')
+            efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
+            # ミーゼス応力を求める
+            stresses = stresses.reshape((-1, 6))
+            tensile = stresses[:, [0, 3]]
+            mage = stresses[:, [2, 5]]
+            rhox = tensile + mage
+            tauxy = stresses[:, [1, 4]]
+            sqrt = np.sqrt((rhox / 2)**2 + tauxy**2)
+            rho1 = rhox / 2 + sqrt
+            rho2 = rhox / 2 - sqrt
+            misses_stress = np.sqrt(1 / 2 * (rho1**2 + rho2**2 + (rho2 - rho1)**2))
+
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
+
+        return float(efficiency), cross_point_num, erased_node_num, misses_stress
