@@ -70,10 +70,10 @@ class Barfem_GA(Problem):
                 edges_indices = np.array(sg.edges)
                 trigger = 1
                 break
-        return trigger
+        return trigger, edges_indices
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
         else:
@@ -355,7 +355,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
         return nodes_pos
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
@@ -449,7 +449,7 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         return penalty_free_node_num
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
         volume = calc_volume(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
@@ -505,7 +505,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
         self.mapdl = mapdl
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
@@ -568,7 +568,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         solution.constraints[:] = [cross_point_number, erased_node_num, misses_stress]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
