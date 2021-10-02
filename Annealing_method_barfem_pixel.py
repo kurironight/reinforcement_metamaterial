@@ -33,8 +33,8 @@ for i in range(5):
     # directoryの作成
     log_dir = "Annealing_results/{}".format(test_name)
 
-    # assert not os.path.exists(log_dir), "already folder exists"
-    # os.makedirs(log_dir)
+    assert not os.path.exists(log_dir), "already folder exists"
+    os.makedirs(log_dir)
 
     assert steps > 100, 'steps must be bigger than 100'
     # tempリストの準備
