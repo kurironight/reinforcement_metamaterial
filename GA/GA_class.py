@@ -551,7 +551,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_stress=0.21):
-        super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
