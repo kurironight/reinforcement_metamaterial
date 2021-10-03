@@ -549,7 +549,11 @@ def calc_misses_stress(stresses):
     stresses = stresses.reshape((-1, 6))
     tensile = stresses[:, [0, 3]]
     mage = stresses[:, [2, 5]]
-    rhox = tensile + mage
+    # 曲げ応力の最大の部分を取得
+    rhox = np.abs(tensile + mage)
+    rhox2 = np.abs(tensile - mage)
+    index = rhox2 > rhox
+    rhox[index] = rhox2[index]
     tauxy = stresses[:, [1, 4]]
     sqrt = np.sqrt((rhox / 2)**2 + tauxy**2)
     rho1 = rhox / 2 + sqrt
