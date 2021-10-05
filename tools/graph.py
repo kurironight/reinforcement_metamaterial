@@ -583,6 +583,19 @@ def calc_misses_stress(stresses):
     return misses_stress
 
 
+def calc_axial_stress(stresses):
+    # 軸方向の最大応力を求める
+    stresses = stresses.reshape((-1, 6))
+    tensile = stresses[:, [0, 3]]
+    mage = stresses[:, [2, 5]]
+    # 曲げ応力の最大の部分を取得
+    rhox = np.abs(tensile + mage)
+    rhox2 = np.abs(tensile - mage)
+    index = rhox2 > rhox
+    rhox[index] = rhox2[index]
+    return rhox
+
+
 def render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number=False, edge_size=100):
     """グラフを図示
     Args:

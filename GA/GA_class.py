@@ -11,7 +11,7 @@ from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
 from FEM.bar_fem import barfem, barfem_anti, barfem_mapdl
-from tools.graph import calc_length, calc_volume, calc_misses_stress
+from tools.graph import calc_length, calc_volume, calc_axial_stress
 from tools.save import save_graph_info_npy
 
 
@@ -558,9 +558,9 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         self.constraints[2] = "<=" + str(constraint_stress)
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, misses_stress] = self.objective(solution)
+        [efficiency, cross_point_number, erased_node_num, stress] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, erased_node_num, misses_stress]
+        solution.constraints[:] = [cross_point_number, erased_node_num, stress]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
@@ -568,7 +568,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
-            misses_stress = self.penalty_constraint_value
+            max_axial_stress = self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -594,8 +594,8 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
 
-            misses_stress = calc_misses_stress(stresses)
-            misses_stress = np.max(misses_stress)  # 最大ミーゼス応力
+            axial_stresses = calc_axial_stress(stresses)
+            max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
@@ -604,4 +604,4 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, misses_stress
+        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress
