@@ -349,7 +349,7 @@ def barfem_anti(nodes_pos, edges_indices, edges_thickness, input_nodes, input_ve
     elif mode == 'force':
         libd.bar_fem_force(mpp, eipp, etpp, cnode_num, cedge_num, cinput_node_num, inp, ivpp, cfrozen_node_num,
                            frz, dspp, stpp, ctmax, ceps)
-    return displacement, stresses
+    return displacement, stresses.reshape((-1, 6))
 
 
 """

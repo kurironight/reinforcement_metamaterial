@@ -567,7 +567,6 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
 
 def calc_misses_stress(stresses):
     # ミーゼス応力を求める
-    stresses = stresses.reshape((-1, 6))
     tensile = stresses[:, [0, 3]]
     mage = stresses[:, [2, 5]]
     # 曲げ応力の最大の部分を取得
@@ -585,7 +584,6 @@ def calc_misses_stress(stresses):
 
 def calc_axial_stress(stresses):
     # 軸方向の最大応力を求める
-    stresses = stresses.reshape((-1, 6))
     tensile = stresses[:, [0, 3]]
     mage = stresses[:, [2, 5]]
     # 曲げ応力の最大の部分を取得
