@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # PARAMETER
 initial_temperature = 0.06
 final_temperature = 0.001
-steps = 5000  # 試行回数
+steps = 3000  # 試行回数
 EDGE_THICKNESS = 0.01  # エッジの太さ
 pixel = 1000
 
@@ -31,7 +31,7 @@ for i in range(5):
     history['result_efficiency'] = []
 
     # directoryの作成
-    log_dir = "Annealing_results/{}".format(test_name)
+    log_dir = "Annealing_results_force/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir)
@@ -120,7 +120,7 @@ for i in range(5):
     origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
     origin_input_vectors = np.array([
-        [0., -0.1],
+        [0., -1],
     ])
     origin_output_vectors = np.array([
         [-1, 0],
@@ -156,7 +156,7 @@ for i in range(5):
     best_efficiency = -1000
 
     if env.confirm_graph_is_connected():
-        current_efficiency = env.calculate_simulation()
+        current_efficiency = env.calculate_simulation(mode='force')
     else:
         current_efficiency = -1
 
@@ -192,7 +192,7 @@ for i in range(5):
             # proposed_efficiency = env.calculate_simulation()
             input_nodes_, output_nodes_, frozen_nodes_, nodes_pos_, edges_indices_ = remove_node_which_nontouchable_in_edge_indices(barfem_input_nodes, barfem_output_nodes, origin_frozen_nodes, origin_nodes_positions, proposed_edges_indices)
             displacement = barfem(nodes_pos_, edges_indices_, proposed_edges_thickness, input_nodes_,
-                                  origin_input_vectors, frozen_nodes_, mode='displacement')
+                                  origin_input_vectors, frozen_nodes_, mode='force')
 
             proposed_efficiency = calc_efficiency(input_nodes_, origin_input_vectors, output_nodes_, origin_output_vectors, displacement)
 
