@@ -8,12 +8,11 @@ max_edge_num = 250
 
 
 def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
-                        input_nodes, input_vectors, frozen_nodes, tmax=1000, eps=1.0e-7):
+                        input_nodes, input_vectors, frozen_nodes, tmax=100000, eps=1.0e-11, mode="force"):
 
     # C言語を用いたbarfem
     displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
-                          input_vectors, frozen_nodes, mode="displacement", tmax=tmax, eps=eps)
-
+                          input_vectors, frozen_nodes, mode=mode, tmax=tmax, eps=eps)
     # APDLの設定
     mapdl = launch_mapdl()
 
@@ -49,10 +48,12 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
         mapdl.d(i + 1, "all", 0)
     # 外力設定
     for i, input_vector in enumerate(input_vectors):
-        #mapdl.f(input_nodes[i] + 1, "FX", input_vector[0])
-        #mapdl.f(input_nodes[i] + 1, "FY", input_vector[1])
-        mapdl.d(input_nodes[i] + 1, "UX", input_vector[0])
-        mapdl.d(input_nodes[i] + 1, "UY", input_vector[1])
+        if mode == "displacement":
+            mapdl.d(input_nodes[i] + 1, "UX", input_vector[0])
+            mapdl.d(input_nodes[i] + 1, "UY", input_vector[1])
+        else:
+            mapdl.f(input_nodes[i] + 1, "FX", input_vector[0])
+            mapdl.f(input_nodes[i] + 1, "FY", input_vector[1])
     # 解析開始
     mapdl.solve()
     mapdl.finish()
@@ -63,6 +64,12 @@ def compare_apdl_barfem(nodes_pos, edges_indices, edges_thickness,
     z_rot = mapdl.post_processing.nodal_rotation('Z')
 
     ansys_disp = np.stack([x_disp, y_disp, z_rot]).T.flatten()
+
+    #result = mapdl.result
+    #nnum, principal_nodal_stress = result.principal_nodal_stress(0)
+    # von_mises = principal_nodal_stress[:, -1]  # von-Mises stress is the right most column
+    # print(von_mises)
+    # print(np.max(von_mises))
 
     mapdl.exit()  # ポート番号などをリセットするために必要
 

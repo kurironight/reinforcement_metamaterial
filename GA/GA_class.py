@@ -99,7 +99,7 @@ class Barfem_GA(Problem):
                     # efficiencyを計算する
                     input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
                     displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                          self.input_vectors, frozen_nodes, mode='displacement')
+                                          self.input_vectors, frozen_nodes, mode='force')
 
                     efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
             else:
@@ -120,7 +120,7 @@ class Barfem_GA(Problem):
                 # efficiencyを計算する
                 input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
                 displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                      self.input_vectors, frozen_nodes, mode='displacement', slender=True)
+                                      self.input_vectors, frozen_nodes, mode='force')
 
                 efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
@@ -293,7 +293,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                  self.input_vectors, frozen_nodes, mode='displacement')
+                                  self.input_vectors, frozen_nodes, mode='force')
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
@@ -381,7 +381,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                  self.input_vectors, frozen_nodes, mode='displacement')
+                                  self.input_vectors, frozen_nodes, mode='force')
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
@@ -476,7 +476,7 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                  self.input_vectors, frozen_nodes, mode='displacement')
+                                  self.input_vectors, frozen_nodes, mode='force')
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
@@ -528,7 +528,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             print("開始")
             displacement = barfem_mapdl(self.mapdl, processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                        self.input_vectors, frozen_nodes)
+                                        self.input_vectors, frozen_nodes, mode="force")
             print("終了")
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
@@ -589,7 +589,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                                 self.input_vectors, frozen_nodes, mode='displacement')
+                                                 self.input_vectors, frozen_nodes, mode='force')
             efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
