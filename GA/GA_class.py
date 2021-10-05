@@ -211,7 +211,7 @@ class IncrementalNodeIncrease_GA(Barfem_GA):
 
 
 class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5, distance_threshold=0.05):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.075, condition_edge_thickness=0.01, distance_threshold=0.1):
         super(ConstraintIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
         self.directions[:] = Problem.MAXIMIZE
@@ -309,7 +309,7 @@ class ConstraintIncrementalNodeIncrease_GA(IncrementalNodeIncrease_GA):
 
 
 class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.015, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.075, condition_edge_thickness=0.01, distance_threshold=0.1):
         super(FixnodeconstIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
         self.directions[:] = Problem.MAXIMIZE
@@ -397,7 +397,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
 
 
 class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_volume=0.3):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_volume=0.3):
         super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
@@ -497,7 +497,7 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, mapdl, free_node_num, fix_node_num, max_edge_thickness=0.015, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05):
+    def __init__(self, mapdl, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.075, condition_edge_thickness=0.01, distance_threshold=0.1):
         super(Ansys_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
         self.mapdl = mapdl
 
@@ -545,7 +545,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.1, min_edge_thickness=0.005, condition_edge_thickness=0.01, distance_threshold=0.05, constraint_stress=0.21):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21):
         super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
