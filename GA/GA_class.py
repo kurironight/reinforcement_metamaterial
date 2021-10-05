@@ -4,7 +4,8 @@ from .condition import condition, condition_only_input_output
 from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
-    remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph, count_cross_points
+    remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph, count_cross_points,\
+    conprocess_condition_edge_indices
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
@@ -366,11 +367,6 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
-            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
-            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
-            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
-                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
             cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
 
@@ -379,6 +375,9 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
                                                             self.condition_edges_indices, self.condition_edges_thickness,
                                                             processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,

@@ -417,6 +417,27 @@ def conprocess_seperate_edge_indice_procedure(condition_input_nodes, condition_o
     return input_nodes, output_nodes, frozen_nodes, processed_edges_thickness
 
 
+def conprocess_condition_edge_indices(processed_frozen_nodes, condition_frozen_nodes, processed_edges_indices, processed_edges_thickness):
+    """固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+    """
+    # processed_frozen_nodesとcondition_frozen_nodesのペアを作成する．
+    # conprocess_seperate_edge_indice_procedureより，順序が紐づいていることを前提にしている．
+    remove_indexes = []
+    condition_frozen_nodes = np.array(condition_frozen_nodes)
+
+    def cond(i, processed_frozen_nodes, condition_frozen_nodes):
+        if ((i[0] in processed_frozen_nodes) & (i[1] in processed_frozen_nodes)):
+            if (condition_frozen_nodes[processed_frozen_nodes == i[0]] != condition_frozen_nodes[processed_frozen_nodes == i[1]] - 1):
+                return True
+        return False
+    remove_indexes = [cond(i, processed_frozen_nodes, condition_frozen_nodes) for i in processed_edges_indices]
+    remove_indexes = np.where(remove_indexes)[0]
+    processed_edges_indices = np.delete(processed_edges_indices, remove_indexes, 0)
+    processed_edges_thickness = np.delete(processed_edges_thickness, remove_indexes, 0)
+
+    return processed_edges_indices, processed_edges_thickness
+
+
 def check_cross_graph(nodes_pos, edges_indices):
     """グラフ内に交差しているエッジがあるかどうかをチェックする
 
