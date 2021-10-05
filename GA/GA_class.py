@@ -462,11 +462,6 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
-            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
-            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
-            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
-                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
             cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
 
@@ -475,6 +470,9 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
                                                             self.condition_edges_indices, self.condition_edges_thickness,
                                                             processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement = barfem(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
@@ -515,11 +513,6 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
-            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
-            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
-            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
-                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
             cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
 
@@ -528,6 +521,9 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
                                                             self.condition_edges_indices, self.condition_edges_thickness,
                                                             processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             print("開始")
@@ -579,11 +575,6 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
-            # 傾きが一致するものをグループ分けし，エッジ分割を行う．
-            processed_edges_indices, processed_edges_thickness = separate_same_line_procedure(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
-            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = \
-                preprocess_graph_info(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
 
             cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
 
@@ -592,6 +583,9 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                 = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
                                                             self.condition_edges_indices, self.condition_edges_thickness,
                                                             processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
