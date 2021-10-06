@@ -545,7 +545,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
         super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
