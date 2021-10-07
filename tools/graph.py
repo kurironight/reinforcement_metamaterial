@@ -355,35 +355,42 @@ def preprocess_graph_info(nodes_pos, edges_indices, edges_thickness):
         edges_indices (np.array): (*,2)
         edges_thickness (np.array): (*)
     """
-    # edge_indicesをaxis1方向にソートする．
-    edges_indices = np.sort(edges_indices, axis=1)
     # 同じ位置にあるノードのedge_indiceにおける番号を統一する
     remove_node_index = np.empty(0, int)
-    for node_index, node_pos in enumerate(nodes_pos):
-        same_index = np.argwhere([(np.allclose(node_pos, ref_node_pos) & np.allclose(ref_node_pos, node_pos)) for ref_node_pos in nodes_pos])  # np.array_equalの場合，予期せぬ挙動が発生する場合が存在する．
-        if same_index.shape[0] != 1:
-            ident_node_index = min(same_index)
-            erased_node_index = np.setdiff1d(same_index, ident_node_index)
-            edges_indices[np.isin(edges_indices, erased_node_index)] = ident_node_index
-            remove_node_index = np.append(remove_node_index, erased_node_index, axis=0)
-    # 抜けたノードの分，ノードのindexをedge_indicesに指定しなおす
+    indexes = np.arange(nodes_pos.shape[0]).reshape((nodes_pos.shape[0], 1))
+    nodes_pos_info = np.concatenate([nodes_pos, indexes], axis=1)
+    while True:
+        ref_node_pos_info = nodes_pos_info[0]
+        ref_node_pos = ref_node_pos_info[:2]
+        ref_node_index = ref_node_pos_info[2]
+        nodes_pos_info = np.delete(nodes_pos_info, 0, 0)
+        same_index = np.argwhere([(np.allclose(node_pos, ref_node_pos) & np.allclose(ref_node_pos, node_pos)) for node_pos in nodes_pos_info[:, :2]])
+        if same_index.shape[0] != 0:
+            erased_node_index = nodes_pos_info[:, 2][same_index]
+            edges_indices[np.isin(edges_indices, erased_node_index)] = ref_node_index
+            remove_node_index = np.append(remove_node_index, erased_node_index.reshape((-1)), axis=0)
+            nodes_pos_info = np.delete(nodes_pos_info, same_index, 0)
+        if nodes_pos_info.shape[0] == 0:
+            break
     ref_nodes_pos = nodes_pos.copy()
-    remove_node_index = np.unique(remove_node_index)
     processed_nodes_pos = np.delete(nodes_pos, remove_node_index, 0)  # 被りがないnode_pos
     processed_edges_indices = edges_indices.copy()
-    for i, target_node_pos in enumerate(processed_nodes_pos):
-        processed_edges_indices[edges_indices == find_nodes_pos_index(target_node_pos, ref_nodes_pos)] = i
+    if remove_node_index.shape[0] != 0:
+        for i, target_node_pos in enumerate(processed_nodes_pos):
+            processed_edges_indices[edges_indices == find_nodes_pos_index(target_node_pos, ref_nodes_pos)] = i
 
     # edge_indiceの内，被りがあるものを除去する
     processed_edges_indices = np.sort(processed_edges_indices, axis=1)
     ref_processed_edges_indices = processed_edges_indices.copy()
-    processed_edges_indices = np.unique(np.array(processed_edges_indices), axis=0)
-
-    # 除去したもののedge_thickを除去する
-    processed_edges_thickness = []
-    for target_edge_indice in processed_edges_indices:
-        processed_edges_thickness.append(np.max(edges_thickness[find_edge_indice_index(target_edge_indice, ref_processed_edges_indices)]))
-    processed_edges_thickness = np.array(processed_edges_thickness)
+    unique_processed_edges_indices = np.unique(np.array(processed_edges_indices), axis=0)
+    if unique_processed_edges_indices.shape[0] != processed_edges_indices.shape[0]:
+        processed_edges_thickness = []
+        for target_edge_indice in unique_processed_edges_indices:
+            processed_edges_thickness.append(np.max(edges_thickness[find_edge_indice_index(target_edge_indice, ref_processed_edges_indices)]))
+        processed_edges_thickness = np.array(processed_edges_thickness)
+        processed_edges_indices = unique_processed_edges_indices
+    else:
+        processed_edges_thickness = edges_thickness
 
     # edge_indicesのうち，[1,1]などのように同じノードを示しているものを除去する
     ident_edge_index = np.argwhere(processed_edges_indices[:, 0] == processed_edges_indices[:, 1])
