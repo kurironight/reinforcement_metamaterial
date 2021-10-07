@@ -462,13 +462,24 @@ def count_cross_points(nodes_pos, edges_indices):
         nodes_pos (np.array): (*,2)
         edges_indices (np.array): (*,2)
     """
-    counts = 0
     edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
-    edge_points_combinations = [pair for pair in itertools.combinations(edge_points, 2)]
-    for edge_points in edge_points_combinations:
-        cross, cross_point = calc_cross_point(edge_points[0][0], edge_points[0][1], edge_points[1][0], edge_points[1][1])
-        if cross:
-            counts = counts + 1
+    edge_points_combinations = np.array([pair for pair in itertools.combinations(edge_points, 2)])
+    pointsA = edge_points_combinations[:, 0, 0]
+    pointsB = edge_points_combinations[:, 0, 1]
+    pointsC = edge_points_combinations[:, 1, 0]
+    pointsD = edge_points_combinations[:, 1, 1]
+    bunbos = (pointsB[:, 0] - pointsA[:, 0]) * (pointsD[:, 1] - pointsC[:, 1]) - (pointsB[:, 1] - pointsA[:, 1]) * (pointsD[:, 0] - pointsC[:, 0])
+    non_zero_index = bunbos != 0
+    pointsA = pointsA[non_zero_index]
+    pointsB = pointsB[non_zero_index]
+    pointsC = pointsC[non_zero_index]
+    pointsD = pointsD[non_zero_index]
+    bunbos = bunbos[non_zero_index]
+    vectorAC = np.stack([pointsC[:, 0] - pointsA[:, 0], pointsC[:, 1] - pointsA[:, 1]], axis=1)
+
+    r = ((pointsD[:, 1] - pointsC[:, 1]) * vectorAC[:, 0] - (pointsD[:, 0] - pointsC[:, 0]) * vectorAC[:, 1]) / bunbos
+    s = ((pointsB[:, 1] - pointsA[:, 1]) * vectorAC[:, 0] - (pointsB[:, 0] - pointsA[:, 0]) * vectorAC[:, 1]) / bunbos
+    counts = np.count_nonzero(((0 < r) & (r < 1)) & ((0 < s) & (s < 1)))
     return counts
 
 
