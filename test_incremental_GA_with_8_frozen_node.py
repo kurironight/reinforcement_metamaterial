@@ -2,7 +2,7 @@ from numpy.core.numeric import _cross_dispatcher
 from platypus import NSGAII, DTLZ2, ProcessPoolEvaluator
 from platypus import NSGAII, Problem, nondominated, Integer, Real, \
     CompoundOperator, SBX, HUX, UM, BitFlip, GeneticAlgorithm, PM
-from GA.GA_class import FixnodeconstIncrementalNodeIncrease_GA
+from GA.GA_class import StressConstraint_GA
 from GA.algorithm import FixNode_NSGAII
 import time
 import numpy as np
@@ -11,49 +11,49 @@ import os
 from tqdm import tqdm
 import pickle
 
-max_free_node_num = 9
+max_free_node_num = 18
 free_nodes_num = np.arange(1, max_free_node_num + 1)
 fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
 
 """
 # 単体実行用
-max_free_node_num = 9
+max_free_node_num = 18
 free_nodes_num = np.arange(max_free_node_num, max_free_node_num + 1)
 fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
 """
-experient_num = 2
+experient_num = 3
 
 if __name__ == "__main__":
     # define the problem definition
-    save_dir = "GA/result"
-    generation = 1700
-    save_interval = 10
+    save_dir = "GA/result/18段階的GA"
+    generation = 30
+    save_interval = 5
 
     parent_mult_value = 10  # 遺伝子個数に対する親の個数の比率
 
     # PATH = os.path.join(save_dir, "parent_{}_gen_{}".format(parent, generation))
     # os.makedirs(PATH, exist_ok=False)
     for t in range(experient_num):
-        PATH = os.path.join(save_dir, "et001_{}".format(t))
+        PATH = os.path.join(save_dir, "{}".format(t))
         os.makedirs(PATH, exist_ok=True)
 
         start = time.time()
         # instantiate the optimization algorithm to run in parallel
         for index, (free_node_num, fix_node_num) in enumerate(zip(free_nodes_num, fix_nodes_num)):
-            problem = FixnodeconstIncrementalNodeIncrease_GA(free_node_num, fix_node_num)
+            problem = StressConstraint_GA(free_node_num, fix_node_num)
             parent = problem.nvars * parent_mult_value
             history = []
             GA_result_dir = os.path.join(PATH, "free_{}_fix_{}".format(free_node_num, fix_node_num))
             os.makedirs(GA_result_dir, exist_ok=True)
             with ProcessPoolEvaluator(8) as evaluator:
                 if index == 0:  # 一つ目のGAでは遺伝子を引き継がない
-                    problem = FixnodeconstIncrementalNodeIncrease_GA(free_node_num, fix_node_num)
+                    problem = StressConstraint_GA(free_node_num, fix_node_num)
                     algorithm = NSGAII(problem, population_size=parent, variator=CompoundOperator(SBX(), HUX(), PM(), BitFlip()), evaluator=evaluator)
                 else:  # 二回目以降のGAでは遺伝子を引き継ぐ
                     load_GA_result_dir = os.path.join(PATH, "free_{}_fix_{}".format(free_nodes_num[index - 1], fix_nodes_num[index - 1]))
                     load_gene_path = os.path.join(load_GA_result_dir, "parents.pk")
-                    problem = FixnodeconstIncrementalNodeIncrease_GA(free_node_num, fix_node_num)
-                    prior_problem = FixnodeconstIncrementalNodeIncrease_GA(free_nodes_num[index - 1], fix_nodes_num[index - 1])
+                    problem = StressConstraint_GA(free_node_num, fix_node_num)
+                    prior_problem = StressConstraint_GA(free_nodes_num[index - 1], fix_nodes_num[index - 1])
                     algorithm = FixNode_NSGAII(problem, prior_problem, gene_path=load_gene_path, population_size=parent, variator=CompoundOperator(SBX(), HUX(), PM(), BitFlip()), evaluator=evaluator)
                 for i in tqdm(range(generation)):
                     algorithm.step()
@@ -84,11 +84,12 @@ if __name__ == "__main__":
                             feasible_solution = [s for s in algorithm.result if s.feasible]
                             max_solution = feasible_solution[max_index]
                             vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
-                            f = open(os.path.join(save_log_dir, "parents.pk"), "wb")
-                            pickle.dump(algorithm.result, f)
+                            with open(os.path.join(save_log_dir, "parents.pk"), 'wb') as f:
+                                pickle.dump(algorithm.result, f)
                             problem.calculate_efficiency(*problem.convert_var_to_arg(vars), np_save_dir=save_log_dir)
                         np.save(os.path.join(save_log_dir, "history.npy"), history)
-                f = open(os.path.join(GA_result_dir, "parents.pk"), "wb")
-                pickle.dump(algorithm.result, f)
+                with open(os.path.join(GA_result_dir, "parents.pk"), 'wb') as f:
+                    pickle.dump(algorithm.result, f)
+
         elapsed_time = time.time() - start
         print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
