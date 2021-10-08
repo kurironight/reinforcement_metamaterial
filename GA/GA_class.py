@@ -57,24 +57,28 @@ class Barfem_GA(Problem):
         # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
         return self.calculate_efficiency(*self.convert_var_to_arg(solution.variables))
 
-    def calculate_trigger(self, nodes_pos, edges_indices):  # barfemをかけるか，かけずにスコアを返すかの判断を行う関数
+    def calculate_trigger(self, nodes_pos, edges_indices, edges_thickness):  # barfemをかけるか，かけずにスコアを返すかの判断を行う関数
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
-        G.add_edges_from(edges_indices)
+        edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
+        G.add_weighted_edges_from(edge_info)
         condition_node_list = self.input_nodes + self.output_nodes + self.frozen_nodes
 
         trigger = 0  # 条件ノードが全て接続するグラフが存在するとき，トリガーを発動する
         for c in nx.connected_components(G):
             sg = G.subgraph(c)  # 部分グラフ
             if set(condition_node_list) <= set(sg.nodes):  # 条件ノードが全て含まれているグラフを抽出する
-                edges_indices = np.array(sg.edges)
+                edges_data = list(sg.edges.data("weight"))
+                edges_data = np.array([np.array(edge_data) for edge_data in edges_data])
+                edges_indices = np.array(edges_data[:, :2], dtype='int64')
+                edges_thickness = edges_data[:, 2]
                 trigger = 1
                 break
-        return trigger, edges_indices
+        return trigger, edges_indices, edges_thickness
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
         else:
@@ -356,7 +360,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
         return nodes_pos
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
@@ -448,7 +452,7 @@ class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         return penalty_free_node_num
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
         volume = calc_volume(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
@@ -502,7 +506,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
         self.mapdl = mapdl
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
@@ -563,7 +567,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         solution.constraints[:] = [cross_point_number, erased_node_num, stress]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
-        trigger, edges_indices = self.calculate_trigger(nodes_pos, edges_indices)
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
         if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
             efficiency = self.penalty_value
             cross_point_num = self.penalty_constraint_value
@@ -572,6 +576,12 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+            save_graph_info_npy("失敗例", nodes_pos, self.input_nodes, self.input_vectors,
+                                self.output_nodes, self.output_vectors, self.frozen_nodes,
+                                edges_indices, edges_thickness)
+            np.save(os.path.join("失敗例", "condition_nodes.npy"), self.condition_nodes_pos)
+            np.save(os.path.join("失敗例", "condition_edges_indices.npy"), self.condition_edges_indices)
+            np.save(os.path.join("失敗例", "condition_edges_thickness.npy"), self.condition_edges_thickness)
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
