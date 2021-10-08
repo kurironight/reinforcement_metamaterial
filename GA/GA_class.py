@@ -576,12 +576,6 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
-            save_graph_info_npy("失敗例", nodes_pos, self.input_nodes, self.input_vectors,
-                                self.output_nodes, self.output_vectors, self.frozen_nodes,
-                                edges_indices, edges_thickness)
-            np.save(os.path.join("失敗例", "condition_nodes.npy"), self.condition_nodes_pos)
-            np.save(os.path.join("失敗例", "condition_edges_indices.npy"), self.condition_edges_indices)
-            np.save(os.path.join("失敗例", "condition_edges_thickness.npy"), self.condition_edges_thickness)
 
             # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
             processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
