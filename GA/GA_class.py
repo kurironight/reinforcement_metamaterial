@@ -149,6 +149,14 @@ class Barfem_GA(Problem):
                                                       self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
         return self.return_score(nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix)
 
+    def get_graph_info_from_genes(self, vars):
+        gene_nodes_pos, gene_edges_thickness, gene_adj_element = self.convert_var_to_arg(vars)
+        edges_indices = make_adj_triu_matrix(gene_adj_element, self.node_num, self.condition_edges_indices)
+        nodes_pos = np.concatenate([self.condition_nodes_pos, gene_nodes_pos])
+        edges_thickness = make_edge_thick_triu_matrix(gene_edges_thickness, self.node_num,
+                                                      self.condition_edges_indices, self.condition_edges_thickness, edges_indices)
+        return nodes_pos, edges_indices, edges_thickness
+
 
 class IncrementalNodeIncrease_GA(Barfem_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=1.0, min_edge_thickness=0.5, condition_edge_thickness=0.5):
@@ -316,9 +324,10 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1):
         super(FixnodeconstIncrementalNodeIncrease_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
+        self.distance_threshold = distance_threshold
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
-        self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
+        self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
@@ -402,7 +411,7 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
 
 class VolumeConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_volume=0.3):
-        super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(VolumeConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
@@ -550,11 +559,11 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
-        super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness)
+        super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
-        self.types[1::2] = Real(distance_threshold + 0.01, 1)  # ノードのy座標を固定部から離す
+        self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す

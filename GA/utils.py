@@ -12,7 +12,8 @@ def make_edge_thick_triu_matrix(gene_edges_thickness, node_num, condition_edges_
 
 
 def make_adj_triu_matrix(adj_element, node_num, condition_edges_indices):
-    """隣接情報を示す遺伝子から，edge_indicesを作成する関数
+    """隣接情報を示す遺伝子から，edge_indicesを作成する関数．
+    条件edge_indices部分は確実に1にしておく．
     """
     adj_matrix = np.zeros((node_num, node_num))
     adj_matrix[np.triu_indices(node_num, 1)] = adj_element
@@ -23,12 +24,22 @@ def make_adj_triu_matrix(adj_element, node_num, condition_edges_indices):
     return edge_indices
 
 
+def revert_binary_to_edge_indices(gene_edge_indices, node_num):
+    """隣接情報を示す遺伝子から，edge_indicesを作成する関数
+    """
+    adj_matrix = np.zeros((node_num, node_num), dtype=bool)
+    adj_matrix[np.triu_indices(node_num, 1)] = np.array(gene_edge_indices).squeeze()
+    edge_indices = np.stack(np.where(adj_matrix), axis=1)
+
+    return edge_indices
+
+
 def revert_edge_indices_to_binary(edges_indices, node_num):
     """edge_indicesから，もとの隣接情報を示すbinary情報に戻す関数
     """
     adj_matrix = np.zeros((node_num, node_num))
     adj_matrix[(edges_indices[:, 0], edges_indices[:, 1])] = 1
-    binary_adj_element = np.array(adj_matrix[np.triu_indices(node_num, 1)]).astype(np.bool)
+    binary_adj_element = np.array(adj_matrix[np.triu_indices(node_num, 1)]).astype(np.bool).reshape((-1, 1)).tolist()
 
     return binary_adj_element
 
