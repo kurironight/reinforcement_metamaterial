@@ -1,5 +1,6 @@
 from platypus import NSGAII, default_variator
 from GA.GA_class import *
+from tools.graph import *
 import numpy as np
 import os
 from GA.utils import *
@@ -155,32 +156,38 @@ class FixNode_NSGAII(Customized_NSGAII):
                                              **kwargs)
 
     def make_inherit_genes_with_increasing_free_node(self, gene, solution):
-        pro_free_node_num = self.problem.free_node_num
-        pro_fix_node_num = self.problem.fix_node_num
-        input_output_node_num = self.problem.input_output_node_num
-        prior_free_node_num = pro_free_node_num - 1
-        prior_fix_node_num = pro_fix_node_num
-
-        # inherit free node
-        random_free_node = np.random.rand(2).tolist()
-        gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
-        gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = random_free_node  # add random free node
-        solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
-
-        # inherit edge_indices
         prior_node_num = self.prior_problem.node_num
-        prior_gene_edge_indices_num = self.prior_problem.gene_edge_indices_num
+        pro_node_num = self.problem.node_num
 
-        random_edge_indices = np.zeros(prior_node_num, dtype=bool)
-        random_edge_indices[np.random.randint(0, len(random_edge_indices))] = True
-        random_edge_indices = random_edge_indices.reshape((-1, 1)).tolist()
+        child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
+        child_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], child_nodes_pos[edges_indice[1]]]) for edges_indice in child_edges_indices])
+        # inherit free node and edge_indices
+        while True:
+            while True:
+                random_free_node_pos = np.random.rand(2)
+                distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
+                if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
+                    break
+            sort_index = np.argsort(distances)
+            fix_nodes_num = np.ones(prior_node_num, dtype=np.int) * (self.problem.node_num - 1)
+            candidate_edges_indices = np.stack([sort_index, fix_nodes_num], axis=1)
+            candidate_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], random_free_node_pos]) for edges_indice in candidate_edges_indices])
+            for index, edge_points in enumerate(candidate_edge_points):  # それぞれの候補エッジがどの既存のエッジとも交差しないかどうかをチェックする
+                cross_check = np.all([not calc_cross_point(edge_points[0], edge_points[1], i[0], i[1])[0] for i in child_edge_points])
+                if cross_check:
+                    chosen_index = index
+                    break
+            if cross_check:
+                break
 
-        gene_edge_indices = gene[-prior_gene_edge_indices_num:]
+        add_edge_indices = candidate_edges_indices[chosen_index].reshape((-1, 2))
+        new_gene_edges_indices = np.concatenate([child_edges_indices, add_edge_indices])
+        new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
+        solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
 
-        new_gene_edge_indices = add_edge_indices_to_gene_edge_indices(gene_edge_indices, random_edge_indices, prior_node_num)
-        pro_node_num = (input_output_node_num + pro_free_node_num + pro_fix_node_num)
-        pro_gene_edge_indices_num = int(pro_node_num * (pro_node_num - 1) / 2)
-        solution.variables[-pro_gene_edge_indices_num:] = new_gene_edge_indices
+        gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
+        gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = random_free_node_pos.tolist()  # add random free node
+        solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
 
         # inherit edge_thickness
         prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
