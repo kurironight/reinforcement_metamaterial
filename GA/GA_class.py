@@ -644,7 +644,7 @@ class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
     # 性能部分を単純に変位に変更したもの
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
         super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
@@ -657,6 +657,8 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
         self.constraints[1] = "<=" + str(constraint_stress)
         self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
         self.penalty_value = -10000.0  # efficiencyに関するペナルティの値
+        self.E = E
+        self.b = b
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
@@ -685,8 +687,8 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
             # efficiencyを計算する
             input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
             displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
-                                                 self.input_vectors, frozen_nodes, mode='force')
-            efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+                                                 self.input_vectors, frozen_nodes, mode='force', E=self.E, b=self.b)
+            efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=self.E, b=self.b)
 
             erased_node_num = self.node_num - processed_nodes_pos.shape[0]
 
