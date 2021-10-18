@@ -175,13 +175,11 @@ void matrix_transpose(double c[][6], double a[][6])
     return;
 }
 
-void get_K_element_matrix(double K_e[6][6], double node[2][2], double h)
+void get_K_element_matrix(double K_e[6][6], double node[2][2], double h, double E, double b)
 {
     double vector[2];
     double L, sin, cos, coef;
     double T[6][6], K_zero[6][6], T_trans[6][6], K_e_ref[6][6];
-    double E = 1.0; //弾性率
-    double b = 0.2; //奥行
     double A = b * h;
     double Iz_A = h * h / 12;
 
@@ -250,13 +248,11 @@ void get_K_element_matrix(double K_e[6][6], double node[2][2], double h)
     matrix_mul(K_e, K_e_ref, T); // K_e行列を作成
 }
 
-void get_force(double *bar_element_stress, double node[2][2], double h, double *bar_element_displacement)
+void get_force(double *bar_element_stress, double node[2][2], double h, double *bar_element_displacement, double E, double b)
 {
     double vector[2];
     double L, sin, cos, coef;
     double T[6][6], K_zero[6][6], T_trans[6][6], K_e_ref[6][6];
-    double E = 1.0;   //弾性率
-    double b = 0.2;   //奥行
     double A = b * h; //断面積
     double Iz_A = h * h / 12;
     double bar_coord_disp[6];
@@ -336,7 +332,7 @@ void get_force(double *bar_element_stress, double node[2][2], double h, double *
     bar_element_stress[5] = bar_coord_F[5] / ((Iz_A * A) / (h / 2));
 }
 
-void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_vectors, int frozen_node_num, int *frozen_nodes, double **displacement, double **stresses, int tmax, double eps)
+void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_vectors, int frozen_node_num, int *frozen_nodes, double **displacement, double **stresses, int tmax, double eps, double E, double b)
 {
     int i, j, k;
     int node1, node2;
@@ -364,7 +360,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
         node[0][1] = nodes_pos[node1][1];
         node[1][0] = nodes_pos[node2][0];
         node[1][1] = nodes_pos[node2][1];
-        get_K_element_matrix(K_e, node, edges_thickness[i][0]);
+        get_K_element_matrix(K_e, node, edges_thickness[i][0], E, b);
 
         // K行列に代入
         // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入
@@ -530,7 +526,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
         bar_element_displacement[3] = x[node2 * free_D + 0];
         bar_element_displacement[4] = x[node2 * free_D + 1];
         bar_element_displacement[5] = x[node2 * free_D + 2];
-        get_force(bar_element_stress, node, edges_thickness[i][0], bar_element_displacement);
+        get_force(bar_element_stress, node, edges_thickness[i][0], bar_element_displacement, E, b);
         for (j = 0; j < 6; ++j)
         {
             stresses[6 * i + j][0] = bar_element_stress[j];
@@ -538,7 +534,7 @@ void bar_fem(double **nodes_pos, int **edges_indices, double **edges_thickness, 
     }
 }
 
-void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement, double **stresses, int tmax, double eps)
+void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement, double **stresses, int tmax, double eps, double E, double b)
 {
     int i, j, k;
     int node1, node2;
@@ -566,7 +562,7 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
         node[0][1] = nodes_pos[node1][1];
         node[1][0] = nodes_pos[node2][0];
         node[1][1] = nodes_pos[node2][1];
-        get_K_element_matrix(K_e, node, edges_thickness[i][0]);
+        get_K_element_matrix(K_e, node, edges_thickness[i][0], E, b);
 
         // K行列に代入
         // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入
@@ -704,7 +700,7 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
         bar_element_displacement[3] = x[node2 * free_D + 0];
         bar_element_displacement[4] = x[node2 * free_D + 1];
         bar_element_displacement[5] = x[node2 * free_D + 2];
-        get_force(bar_element_stress, node, edges_thickness[i][0], bar_element_displacement);
+        get_force(bar_element_stress, node, edges_thickness[i][0], bar_element_displacement, E, b);
         for (j = 0; j < 6; ++j)
         {
             stresses[6 * i + j][0] = bar_element_stress[j];
@@ -713,7 +709,7 @@ void bar_fem_force(double **nodes_pos, int **edges_indices, double **edges_thick
 }
 
 //APDLにおける，ソルバー部分の精度を求める
-void confirm_apdl_accuracy(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement)
+void confirm_apdl_accuracy(double **nodes_pos, int **edges_indices, double **edges_thickness, int node_num, int edge_num, int input_node_num, int *input_nodes, double **input_forces, int frozen_node_num, int *frozen_nodes, double **displacement, double E, double b)
 {
     int i, j, k;
     int node1, node2;
@@ -741,7 +737,7 @@ void confirm_apdl_accuracy(double **nodes_pos, int **edges_indices, double **edg
         node[0][1] = nodes_pos[node1][1];
         node[1][0] = nodes_pos[node2][0];
         node[1][1] = nodes_pos[node2][1];
-        get_K_element_matrix(K_e, node, edges_thickness[i][0]);
+        get_K_element_matrix(K_e, node, edges_thickness[i][0], E, b);
 
         // K行列に代入
         // K11をK[node1*3:(node1+1)*3,node1*3:(node1+1)*3]に代入

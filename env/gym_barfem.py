@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency, render_graph
+from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency, render_graph, calc_output_efficiency
 
 
 class BarFemGym(MetamechGym):
@@ -40,3 +40,20 @@ class BarFemGym(MetamechGym):
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         render_graph(nodes_pos, edges_indices, edges_thickness, save_path, display_number, edge_size=edge_size)
+
+
+class BarFemOutputGym(BarFemGym):
+    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes):
+        super(BarFemOutputGym, self).__init__(node_pos, input_nodes, input_vectors,
+                                              output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness, condition_nodes)
+
+    def calculate_simulation(self, mode='force'):
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
+        node_num = nodes_pos.shape[0]
+        assert node_num >= np.max(
+            edges_indices), 'edges_indicesに，ノード数以上のindexを示しているものが発生'
+        input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(self.input_nodes, self.output_nodes, self.frozen_nodes, nodes_pos, edges_indices)
+        displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
+                              self.input_vectors, frozen_nodes, mode)
+        efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=1.0, b=0.2)
+        return efficiency
