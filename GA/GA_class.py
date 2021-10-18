@@ -560,7 +560,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
         super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
@@ -569,11 +569,12 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             Binary(1)  # 隣接行列を指す
         self.constraints[:] = "<=0"
         self.constraints[2] = "<=" + str(constraint_stress)
+        self.constraints[3] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, stress] = self.objective(solution)
+        [efficiency, cross_point_number, erased_node_num, stress, adjacent] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, erased_node_num, stress]
+        solution.constraints[:] = [cross_point_number, erased_node_num, stress, adjacent]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
@@ -617,14 +618,14 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress
+        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
 
 
 class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
     # 自由ノードの数に関して，free_node_num未満でも良いことにしたGA
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
         super(NodeNumFreeStressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
@@ -633,18 +634,19 @@ class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
             Binary(1)  # 隣接行列を指す
         self.constraints[0] = "<=0"
         self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, stress] = self.objective(solution)
+        [efficiency, cross_point_number, erased_node_num, stress, adjacent] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, stress]
+        solution.constraints[:] = [cross_point_number, stress, adjacent]
 
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
     # 性能部分を単純に変位に変更したもの
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933):
         super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 2)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
@@ -653,6 +655,8 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
             Binary(1)  # 隣接行列を指す
         self.constraints[0] = "<=0"
         self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.penalty_value = -10000.0  # efficiencyに関するペナルティの値
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
@@ -696,4 +700,4 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress
+        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
