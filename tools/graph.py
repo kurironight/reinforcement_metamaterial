@@ -583,7 +583,7 @@ def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, di
     return efficiency
 
 
-def calc_output_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement, E=1, b=0.2):
+def calc_output_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement, E, b):
     # E: ヤング率
     # b: 幅
     denominator = np.sum([np.linalg.norm(input_vectors[i]) for i, input_node in enumerate(input_nodes)])
