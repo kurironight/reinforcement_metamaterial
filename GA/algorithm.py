@@ -312,8 +312,6 @@ class NonConstraint_FixNode_add_middle_point_NSGAII(Customized_NSGAII):
 
         under_d_cond = node1_under_d_cond | node2_under_d_cond
 
-        print(child_edges_indices[lengths_condition | under_d_cond])
-
         return lengths_condition | under_d_cond
 
     def make_inherit_genes_with_increasing_free_node(self, gene, solution):
