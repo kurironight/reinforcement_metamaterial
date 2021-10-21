@@ -219,72 +219,6 @@ class FixNode_add_middle_point_NSGAII(Customized_NSGAII):
             return True
         return False
 
-    def make_inherit_genes_with_increasing_free_node(self, gene, solution):
-        prior_node_num = self.prior_problem.node_num
-        pro_node_num = self.problem.node_num
-
-        # inherit edge_indices
-        # どのエッジの間にノードを追加するかを選ぶ
-        child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
-        remove_indexes = [not self.check_equal_to_condition_edge(i) for i in child_edges_indices]
-        candidate_indexes = np.where(remove_indexes)[0]
-        selected_edge_index = np.random.choice(candidate_indexes)
-        selected_edge_indices = child_edges_indices[selected_edge_index]
-        child_edges_indices = np.delete(child_edges_indices, selected_edge_index, 0)
-        new_gene_edges_indices = np.concatenate([child_edges_indices, np.array([[selected_edge_indices[0], pro_node_num - 1], [selected_edge_indices[1], pro_node_num - 1]])])
-        new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
-        solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
-        # inherit free node
-        y_lower_bound = self.problem.distance_threshold
-        selected_node1_pos = child_nodes_pos[selected_edge_indices[0]]
-        selected_node2_pos = child_nodes_pos[selected_edge_indices[1]]
-        vector = selected_node1_pos - selected_node2_pos
-        # 追加するノードが下限のdistance_holdよりも下に行かないようにする．なお，これは固定ノード間など，distance_hold以下のノード同士を組んだエッジが選ばれないことを前提とする．
-        if (selected_node1_pos[1] >= y_lower_bound) & (selected_node2_pos[1] >= y_lower_bound):
-            r = np.random.rand(1)
-        elif selected_node1_pos[1] >= y_lower_bound:
-            limit = (y_lower_bound - selected_node2_pos[1]) / vector[1]
-            r = np.random.uniform(low=limit, high=1.0)
-        else:
-            limit = (y_lower_bound - selected_node2_pos[1]) / vector[1]
-            r = np.random.uniform(low=0.0, high=limit)
-        add_free_node_pos = (selected_node1_pos - selected_node2_pos) * r + selected_node2_pos
-        add_free_node_pos = add_free_node_pos.tolist()
-        gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
-        gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = add_free_node_pos  # add random free node
-        solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
-
-        # inherit edge_thickness
-        add_edge_thick = child_gene_edges_thickness[selected_edge_index]  # ref_edge_thicknessは，geneではなく，
-        prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
-        prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
-        gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
-        additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
-        additional_edge_thickness[selected_edge_indices] = add_edge_thick
-        new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
-        solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
-        return solution
-
-
-class NonConstraint_FixNode_add_middle_point_NSGAII(Customized_NSGAII):
-    def __init__(self, problem, prior_problem, gene_path,
-                 population_size=100,
-                 variator=None,
-                 archive=None,
-                 init_parents=None,
-                 **kwargs):
-        super(NonConstraint_FixNode_add_middle_point_NSGAII, self).__init__(problem, prior_problem, gene_path,
-                                                                            population_size=population_size,
-                                                                            variator=variator,
-                                                                            archive=archive,
-                                                                            **kwargs)
-        self.frozen_nodes = self.prior_problem.frozen_nodes  # priorにしていることに特に意味はない
-
-    def check_equal_to_condition_edge(self, target_edge_indice):
-        if ((target_edge_indice[0] in self.frozen_nodes) & (target_edge_indice[1] in self.frozen_nodes)):
-            return True
-        return False
-
     def check_not_condition_for_selected_edge(self, child_nodes_pos, child_edges_indices):
         edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], child_nodes_pos[edges_indice[1]]]) for edges_indice in child_edges_indices])
         lengths = np.array([calc_length(i[0][0], i[0][1], i[1][0], i[1][1]) for i in edge_points])
@@ -324,51 +258,87 @@ class NonConstraint_FixNode_add_middle_point_NSGAII(Customized_NSGAII):
         remove_indexes = [not self.check_equal_to_condition_edge(i) for i in child_edges_indices]  # 条件ノード間ではないエッジのみ抽出
         edge_cond_remove_indexes = self.check_not_condition_for_selected_edge(child_nodes_pos, child_edges_indices)  # ノード間を満たすエッジのみ抽出
         candidate_indexes = np.where(remove_indexes & (~edge_cond_remove_indexes))[0]
-        selected_edge_index = np.random.choice(candidate_indexes)
-        selected_edge_indices = child_edges_indices[selected_edge_index]
-        child_edges_indices = np.delete(child_edges_indices, selected_edge_index, 0)
-        new_gene_edges_indices = np.concatenate([child_edges_indices, np.array([[selected_edge_indices[0], pro_node_num - 1], [selected_edge_indices[1], pro_node_num - 1]])])
-        new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
-        solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
-        # inherit free node
-        y_lower_bound = self.problem.distance_threshold
-        selected_node1_pos = child_nodes_pos[selected_edge_indices[0]]
-        selected_node2_pos = child_nodes_pos[selected_edge_indices[1]]
-        vector = selected_node1_pos - selected_node2_pos
-        length = calc_length(selected_node1_pos[0], selected_node1_pos[1], selected_node2_pos[0], selected_node2_pos[1])
+        if len(candidate_indexes) != 0:
+            selected_edge_index = np.random.choice(candidate_indexes)
+            selected_edge_indices = child_edges_indices[selected_edge_index]
+            child_edges_indices = np.delete(child_edges_indices, selected_edge_index, 0)
+            new_gene_edges_indices = np.concatenate([child_edges_indices, np.array([[selected_edge_indices[0], pro_node_num - 1], [selected_edge_indices[1], pro_node_num - 1]])])
+            new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
+            solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
+            # inherit free node
+            y_lower_bound = self.problem.distance_threshold
+            selected_node1_pos = child_nodes_pos[selected_edge_indices[0]]
+            selected_node2_pos = child_nodes_pos[selected_edge_indices[1]]
+            vector = selected_node1_pos - selected_node2_pos
+            length = calc_length(selected_node1_pos[0], selected_node1_pos[1], selected_node2_pos[0], selected_node2_pos[1])
 
-        # 追加するノードが下限のdistance_holdよりも下に行かないようにする．なお，これは固定ノード間など，distance_hold以下のノード同士を組んだエッジが選ばれないことを前提とする．
-        if (selected_node1_pos[1] >= y_lower_bound) & (selected_node2_pos[1] >= y_lower_bound):
-            hl = 1 - (self.problem.distance_threshold / length)
-            ll = self.problem.distance_threshold / length
-            r = np.random.uniform(low=ll, high=hl)
-        elif selected_node1_pos[1] >= y_lower_bound:  # ノード１のみ上
-            dd_L = ((y_lower_bound - selected_node2_pos[1]) / vector[1])
-            d_L = self.problem.distance_threshold / length
-            if dd_L >= d_L:
-                r = np.random.uniform(low=dd_L, high=1 - d_L)
-            else:
-                r = np.random.uniform(low=d_L, high=1 - d_L)
-        else:  # ノード２のみ上
-            dd_L = ((y_lower_bound - selected_node1_pos[1]) / -vector[1])
-            d_L = self.problem.distance_threshold / length
-            if dd_L >= d_L:
-                r = np.random.uniform(low=d_L, high=1 - dd_L)
-            else:
-                r = np.random.uniform(low=d_L, high=1 - d_L)
-        add_free_node_pos = (selected_node1_pos - selected_node2_pos) * r + selected_node2_pos
-        add_free_node_pos = add_free_node_pos.tolist()
-        gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
-        gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = add_free_node_pos  # add random free node
-        solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
+            # 追加するノードが下限のdistance_holdよりも下に行かないようにする．なお，これは固定ノード間など，distance_hold以下のノード同士を組んだエッジが選ばれないことを前提とする．
+            if (selected_node1_pos[1] >= y_lower_bound) & (selected_node2_pos[1] >= y_lower_bound):
+                hl = 1 - (self.problem.distance_threshold / length)
+                ll = self.problem.distance_threshold / length
+                r = np.random.uniform(low=ll, high=hl)
+            elif selected_node1_pos[1] >= y_lower_bound:  # ノード１のみ上
+                dd_L = ((y_lower_bound - selected_node2_pos[1]) / vector[1])
+                d_L = self.problem.distance_threshold / length
+                if dd_L >= d_L:
+                    r = np.random.uniform(low=dd_L, high=1 - d_L)
+                else:
+                    r = np.random.uniform(low=d_L, high=1 - d_L)
+            else:  # ノード２のみ上
+                dd_L = ((y_lower_bound - selected_node1_pos[1]) / -vector[1])
+                d_L = self.problem.distance_threshold / length
+                if dd_L >= d_L:
+                    r = np.random.uniform(low=d_L, high=1 - dd_L)
+                else:
+                    r = np.random.uniform(low=d_L, high=1 - d_L)
+            add_free_node_pos = (selected_node1_pos - selected_node2_pos) * r + selected_node2_pos
+            add_free_node_pos = add_free_node_pos.tolist()
+            gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
+            gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = add_free_node_pos  # add random free node
+            solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
 
-        # inherit edge_thickness
-        add_edge_thick = child_gene_edges_thickness[selected_edge_index]  # ref_edge_thicknessは，geneではなく，
-        prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
-        prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
-        gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
-        additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
-        additional_edge_thickness[selected_edge_indices] = add_edge_thick
-        new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
-        solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
+            # inherit edge_thickness
+            add_edge_thick = child_gene_edges_thickness[selected_edge_index]  # ref_edge_thicknessは，geneではなく，
+            prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
+            prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
+            gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
+            additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
+            additional_edge_thickness[selected_edge_indices] = add_edge_thick
+            new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
+            solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
+        else:  # 一つも条件を満たすエッジが存在しない場合，ノードを一つ付与する
+            child_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], child_nodes_pos[edges_indice[1]]]) for edges_indice in child_edges_indices])
+            # inherit free node and edge_indices
+            while True:
+                while True:
+                    random_free_node_pos = np.random.rand(2)
+                    distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
+                    if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
+                        break
+                sort_index = np.argsort(distances)
+                fix_nodes_num = np.ones(prior_node_num, dtype=np.int) * (self.problem.node_num - 1)
+                candidate_edges_indices = np.stack([sort_index, fix_nodes_num], axis=1)
+                candidate_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], random_free_node_pos]) for edges_indice in candidate_edges_indices])
+                for index, edge_points in enumerate(candidate_edge_points):  # それぞれの候補エッジがどの既存のエッジとも交差しないかどうかをチェックする
+                    cross_check = np.all([not calc_cross_point(edge_points[0], edge_points[1], i[0], i[1])[0] for i in child_edge_points])
+                    if cross_check:
+                        chosen_index = index
+                        break
+                if cross_check:
+                    break
+            add_edge_indices = candidate_edges_indices[chosen_index].reshape((-1, 2))
+            new_gene_edges_indices = np.concatenate([child_edges_indices, add_edge_indices])
+            new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
+            solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
+            gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
+            gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = random_free_node_pos.tolist()  # add random free node
+            solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
+
+            # inherit edge_thickness
+            prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
+            prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
+            gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
+            additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
+            new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
+            solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
         return solution
