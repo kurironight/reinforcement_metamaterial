@@ -642,6 +642,69 @@ class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
         solution.constraints[:] = [cross_point_number, stress, adjacent]
 
 
+class Disp_GA(NodeNumFreeStressConstraint_GA):
+    # 性能部分をη1に戻したもの
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21049, E=1.0, b=0.2):
+        super(Disp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
+        self.input_vectors = self.input_vectors * 0.1  # [0,-0.1]に戻していることに注意
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[0] = "<=0"
+        self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.E = E
+        self.b = b
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
+            max_axial_stress = self.penalty_constraint_value
+        else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                                 self.input_vectors, frozen_nodes, mode='displacement', E=self.E, b=self.b)
+            efficiency = calc_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement)
+
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
+            axial_stresses = calc_axial_stress(stresses)
+            max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
+
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
+
+        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
+
+
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
     # 性能部分を単純に変位に変更したもの
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
@@ -656,7 +719,7 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
         self.constraints[0] = "<=0"
         self.constraints[1] = "<=" + str(constraint_stress)
         self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
-        self.penalty_value = -10000.0  # efficiencyに関するペナルティの値
+        self.penalty_value = -10.0  # efficiencyに関するペナルティの値
         self.E = E
         self.b = b
 
