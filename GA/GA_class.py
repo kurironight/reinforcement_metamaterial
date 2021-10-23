@@ -558,6 +558,7 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
+    # 性能はη2．ノード数は固定．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
         super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
@@ -622,7 +623,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 
 class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
-    # 自由ノードの数に関して，free_node_num未満でも良いことにしたGA
+    # # 性能はη2．ノード数は可変．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
         super(NodeNumFreeStressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
@@ -643,7 +644,7 @@ class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
 
 
 class Disp_GA(NodeNumFreeStressConstraint_GA):
-    # 性能部分をη1に戻したもの
+    # 性能部分をη1に戻したもの．ノード数は可変．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21049, E=1.0, b=0.2):
         super(Disp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
         self.input_vectors = self.input_vectors * 0.1  # [0,-0.1]に戻していることに注意
@@ -706,7 +707,7 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
 
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
-    # 性能部分を単純に変位に変更したもの
+    # 性能はη3．ノード数は可変．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
         super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
@@ -769,7 +770,7 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
 
 
 class FixnodeForceDisp_GA(ForceDisp_GA):
-    # ノード数は固定とし，性能部分を単純に変位に変更したもの
+    # 性能はη3．ノード数は固定．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
         super(FixnodeForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, E, b)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
