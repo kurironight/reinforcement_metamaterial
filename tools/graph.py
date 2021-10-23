@@ -1,3 +1,4 @@
+import networkx as nx
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
@@ -577,7 +578,7 @@ def remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, fr
     return input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices
 
 
-def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement):
+def calc_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement, E=1, b=0.2):
     denominator = np.sum([np.dot(input_vectors[i] / np.linalg.norm(input_vectors[i]), displacement[[input_node * 3 + 0, input_node * 3 + 1]]) for i, input_node in enumerate(input_nodes)])
     efficiency = np.dot(output_vectors / np.linalg.norm(output_vectors), displacement[[output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]]) / denominator
     return efficiency
@@ -672,6 +673,7 @@ def render_pixel_graph(nodes_pos, edges_indices, edges_thickness, save_path, pix
              for edge_indice, edge_thickness in zip(edges_indices, edges_thickness)]
 
     rho = make_bar_structure(pixel, pixel, edges)
+    print(np.sum(rho))
 
     ny, nx = rho.shape
     x = np.arange(0, nx + 1)  # x軸の描画範囲の生成。
@@ -682,3 +684,32 @@ def render_pixel_graph(nodes_pos, edges_indices, edges_thickness, save_path, pix
     plt.axis("off")
     fig.savefig(save_path)
     plt.close()
+
+
+def count_overlap_edg_pair(nodes_pos, edges_indices, edges_thickness, degree_threshhold=30):
+    # それぞれのノードに対して，接続しているエッジの角度が隣同士で閾値以下のペアのものを数える関数
+    G = nx.Graph()
+    G.add_nodes_from(np.arange(len(nodes_pos)))
+    edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
+    G.add_weighted_edges_from(edge_info)
+
+    count = 0
+    for target_node in G.nodes:
+        target_edges_indices = np.array(list(G.edges(target_node)), dtype=int)  # 始点は与えたノード番号から始まる．例：26の場合，[26,3],[26,7]
+        if target_edges_indices.shape[0] == 1:  # 一つしかエッジが存在しない場合
+            continue
+        else:
+            edge_points_1 = nodes_pos[target_node]
+            edge_points_2 = nodes_pos[target_edges_indices[:, 1]]
+            vec = edge_points_2 - edge_points_1
+            if target_edges_indices.shape[0] == 2:  # 2つしかエッジが存在しない場合
+                rad = np.arctan2(vec[:, 0], vec[:, 1])
+                rad_mod = np.mod(rad[0] - rad[1], 2 * np.pi)
+                count += np.count_nonzero((rad_mod * 180 / np.pi < degree_threshhold) | ((360 - degree_threshhold) < rad_mod * 180 / np.pi))
+            else:
+                vec_rad_sort = np.sort(np.arctan2(vec[:, 0], vec[:, 1]))
+                compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])
+                rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
+                count += np.count_nonzero((rad_mod * 180 / np.pi < degree_threshhold) | ((360 - degree_threshhold) < rad_mod * 180 / np.pi))
+
+    return count
