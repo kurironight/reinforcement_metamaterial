@@ -686,7 +686,7 @@ def render_pixel_graph(nodes_pos, edges_indices, edges_thickness, save_path, pix
     plt.close()
 
 
-def count_overlap_edg_pair(nodes_pos, edges_indices, edges_thickness, degree_threshhold=30):
+def count_overlap_edge_pair(nodes_pos, edges_indices, edges_thickness, degree_threshhold=30):
     # それぞれのノードに対して，接続しているエッジの角度が隣同士で閾値以下のペアのものを数える関数
     G = nx.Graph()
     G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -713,3 +713,46 @@ def count_overlap_edg_pair(nodes_pos, edges_indices, edges_thickness, degree_thr
                 count += np.count_nonzero((rad_mod * 180 / np.pi < degree_threshhold) | ((360 - degree_threshhold) < rad_mod * 180 / np.pi))
 
     return count
+
+
+def calc_minimum_perpendicular_line_length_edge_pair(nodes_pos, edges_indices, edges_thickness):
+    # それぞれのノードに対して，接続しているエッジの角度が隣同士でのものの垂線の長さの最小値を求める関数
+    G = nx.Graph()
+    G.add_nodes_from(np.arange(len(nodes_pos)))
+    edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
+    G.add_weighted_edges_from(edge_info)
+
+    perpendicular_line_lengths = []  # 垂線の足の長さを収納するリスト
+    for target_node in G.nodes:
+        target_edges_indices = np.array(list(G.edges(target_node)), dtype=int)  # 始点は与えたノード番号から始まる．例：26の場合，[26,3],[26,7]
+        if target_edges_indices.shape[0] == 1:  # 一つしかエッジが存在しない場合
+            continue
+        else:
+            edge_points_1 = nodes_pos[target_node]
+            edge_points_2 = nodes_pos[target_edges_indices[:, 1]]
+            vec = edge_points_2 - edge_points_1
+            if target_edges_indices.shape[0] == 2:  # 2つしかエッジが存在しない場合
+                rad = np.arctan2(vec[:, 0], vec[:, 1])
+                rad_mod = np.mod(rad[0] - rad[1], 2 * np.pi)
+                # 90度未満のエッジ同士の垂線の足の長さのみ求める
+                if (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod):
+                    L1 = abs(np.linalg.norm(vec[0]) * np.sin(rad_mod))
+                    L2 = abs(np.linalg.norm(vec[1]) * np.sin(rad_mod))
+                    perpendicular_line_lengths.extend([L1, L2])
+
+            else:
+                vec_rad = np.arctan2(vec[:, 0], vec[:, 1])
+                vec_arg_rad_sort = np.argsort(vec_rad)
+                vec_rad_sort = vec_rad[vec_arg_rad_sort]
+                vec_sort = vec[vec_arg_rad_sort]
+                compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])
+                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1)])
+                rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
+                # 90度未満のエッジ同士の垂線の足の長さのみ求める
+                under_90_mask = (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod)
+                L1 = abs(np.linalg.norm(compare_vec[0, under_90_mask], axis=1) * np.sin(rad_mod[under_90_mask]))
+                L2 = abs(np.linalg.norm(compare_vec[1, under_90_mask], axis=1) * np.sin(rad_mod[under_90_mask]))
+                perpendicular_line_lengths.extend(L1.tolist())
+                perpendicular_line_lengths.extend(L2.tolist())
+
+    return np.min(perpendicular_line_lengths)
