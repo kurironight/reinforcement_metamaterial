@@ -715,12 +715,11 @@ def count_overlap_edge_pair(nodes_pos, edges_indices, edges_thickness, degree_th
     return count
 
 
-def calc_minimum_perpendicular_line_length_edge_pair(nodes_pos, edges_indices, edges_thickness):
+def calc_minimum_perpendicular_line_length_edge_pair(nodes_pos, edges_indices):
     # それぞれのノードに対して，接続しているエッジの角度が隣同士でのものの垂線の長さの最小値を求める関数
     G = nx.Graph()
     G.add_nodes_from(np.arange(len(nodes_pos)))
-    edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
-    G.add_weighted_edges_from(edge_info)
+    G.add_edges_from(edges_indices)
 
     perpendicular_line_lengths = []  # 垂線の足の長さを収納するリスト
     for target_node in G.nodes:

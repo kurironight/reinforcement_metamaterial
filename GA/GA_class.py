@@ -615,7 +615,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
-            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices)
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
@@ -704,7 +704,7 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
-            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices)
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
@@ -771,7 +771,7 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
-            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices)
 
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
