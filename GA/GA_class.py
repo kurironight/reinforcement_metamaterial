@@ -11,7 +11,7 @@ from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
 import os
 from FEM.bar_fem import barfem, barfem_anti, barfem_mapdl
-from tools.graph import calc_length, calc_volume, calc_axial_stress, calc_output_efficiency
+from tools.graph import calc_length, calc_volume, calc_axial_stress, calc_output_efficiency, calc_minimum_perpendicular_line_length_edge_pair
 from tools.save import save_graph_info_npy
 
 
@@ -559,23 +559,25 @@ class Ansys_GA(FixnodeconstIncrementalNodeIncrease_GA):
 
 class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
     # 性能はη2．ノード数は固定．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39, p_line_length_threshold=0.025):
         super(StressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
-        self.constraints[:] = "<=0"
-        self.constraints[2] = "<=" + str(constraint_stress)
-        self.constraints[3] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
+        self.constraints[4] = "<=0"  # 指定ノード数との乖離数
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, stress, adjacent] = self.objective(solution)
+        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, erased_node_num, stress, adjacent]
+        solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length, erased_node_num]
 
     def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
         trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
@@ -584,6 +586,7 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
             max_axial_stress = self.penalty_constraint_value
+            min_p_line_length = -self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -612,6 +615,8 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
@@ -619,45 +624,47 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
+        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
 
 
 class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
     # # 性能はη2．ノード数は可変．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39):
-        super(NodeNumFreeStressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=7681.39, p_line_length_threshold=0.025):
+        super(NodeNumFreeStressConstraint_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, p_line_length_threshold)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
-        self.constraints[0] = "<=0"
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
         self.constraints[1] = "<=" + str(constraint_stress)
         self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, stress, adjacent] = self.objective(solution)
+        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, stress, adjacent]
+        solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length]
 
 
 class Disp_GA(NodeNumFreeStressConstraint_GA):
     # 性能部分をη1に戻したもの．ノード数は可変．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21049, E=1.0, b=0.2):
-        super(Disp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=0.21049, p_line_length_threshold=0.025, E=1.0, b=0.2):
+        super(Disp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, p_line_length_threshold)
         self.input_vectors = self.input_vectors * 0.1  # [0,-0.1]に戻していることに注意
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
-        self.constraints[0] = "<=0"
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
         self.constraints[1] = "<=" + str(constraint_stress)
         self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
         self.E = E
         self.b = b
 
@@ -668,6 +675,7 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
             max_axial_stress = self.penalty_constraint_value
+            min_p_line_length = -self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -696,6 +704,8 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
@@ -703,23 +713,24 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
+        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
 
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
     # 性能はη3．ノード数は可変．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
-        super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 3)
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, p_line_length_threshold=0.025, E=1.0, b=0.2):
+        super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, p_line_length_threshold)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
-        self.constraints[0] = "<=0"
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
         self.constraints[1] = "<=" + str(constraint_stress)
         self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
         self.penalty_value = -10.0  # efficiencyに関するペナルティの値
         self.E = E
         self.b = b
@@ -731,6 +742,7 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
             cross_point_num = self.penalty_constraint_value
             erased_node_num = self.penalty_constraint_value
             max_axial_stress = self.penalty_constraint_value
+            min_p_line_length = -self.penalty_constraint_value
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
@@ -759,6 +771,8 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
             axial_stresses = calc_axial_stress(stresses)
             max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
 
+            min_p_line_length = calc_minimum_perpendicular_line_length_edge_pair(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
@@ -766,26 +780,27 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, erased_node_num, max_axial_stress, trigger
+        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
 
 
 class FixnodeForceDisp_GA(ForceDisp_GA):
     # 性能はη3．ノード数は固定．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, E=1.0, b=0.2):
-        super(FixnodeForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, E, b)
-        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 4)
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, p_line_length_threshold=0.025, E=1.0, b=0.2):
+        super(FixnodeForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, p_line_length_threshold, E, b)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
         self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
         self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
         self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
         self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
             Binary(1)  # 隣接行列を指す
-        self.constraints[0] = "<=0"
-        self.constraints[1] = "<=0"
-        self.constraints[2] = "<=" + str(constraint_stress)
-        self.constraints[3] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
+        self.constraints[4] = "<=0"  # 指定ノード数との乖離数
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, erased_node_num, stress, adjacent] = self.objective(solution)
+        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
         solution.objectives[:] = [efficiency]
-        solution.constraints[:] = [cross_point_number, erased_node_num, stress, adjacent]
+        solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length, erased_node_num]
