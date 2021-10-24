@@ -57,6 +57,10 @@ class Barfem_GA(Problem):
         # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
         return self.calculate_efficiency(*self.convert_var_to_arg(solution.variables))
 
+    def objective_vars(self, vars):
+        # TODO condition edges_indicesの中身は左の方が右よりも小さいということをassertする
+        return self.calculate_efficiency(*self.convert_var_to_arg(vars))
+
     def calculate_trigger(self, nodes_pos, edges_indices, edges_thickness):  # barfemをかけるか，かけずにスコアを返すかの判断を行う関数
         # 条件ノードが含まれている部分グラフを抽出
         G = nx.Graph()

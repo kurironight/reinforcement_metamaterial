@@ -161,42 +161,48 @@ class FixNode_NSGAII(Customized_NSGAII):
 
         child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
         child_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], child_nodes_pos[edges_indice[1]]]) for edges_indice in child_edges_indices])
-        # inherit free node and edge_indices
-        while True:
+        result = self.prior_problem.objective_vars(gene)  # TODO objectiveの返り値を辞書型にして，常に垂線の長さを取得出来るようにする
+        gene_min_p_line_length = result[4]
+        new_gene_min_p_line_length = gene_min_p_line_length - 1
+        while gene_min_p_line_length != new_gene_min_p_line_length:  # 垂線の長さに関する制約の値が変動しないように引き継ぐ為
+            # inherit free node and edge_indices
             while True:
-                random_free_node_pos = np.random.rand(2)
-                distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
-                if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
-                    break
-            sort_index = np.argsort(distances)
-            fix_nodes_num = np.ones(prior_node_num, dtype=np.int) * (self.problem.node_num - 1)
-            candidate_edges_indices = np.stack([sort_index, fix_nodes_num], axis=1)
-            candidate_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], random_free_node_pos]) for edges_indice in candidate_edges_indices])
-            for index, edge_points in enumerate(candidate_edge_points):  # それぞれの候補エッジがどの既存のエッジとも交差しないかどうかをチェックする
-                cross_check = np.all([not calc_cross_point(edge_points[0], edge_points[1], i[0], i[1])[0] for i in child_edge_points])
+                while True:
+                    random_free_node_pos = np.random.rand(2)
+                    distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
+                    if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
+                        break
+                sort_index = np.argsort(distances)
+                fix_nodes_num = np.ones(prior_node_num, dtype=np.int) * (self.problem.node_num - 1)
+                candidate_edges_indices = np.stack([sort_index, fix_nodes_num], axis=1)
+                candidate_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], random_free_node_pos]) for edges_indice in candidate_edges_indices])
+                for index, edge_points in enumerate(candidate_edge_points):  # それぞれの候補エッジがどの既存のエッジとも交差しないかどうかをチェックする
+                    cross_check = np.all([not calc_cross_point(edge_points[0], edge_points[1], i[0], i[1])[0] for i in child_edge_points])
+                    if cross_check:
+                        chosen_index = index
+                        break
                 if cross_check:
-                    chosen_index = index
                     break
-            if cross_check:
-                break
 
-        add_edge_indices = candidate_edges_indices[chosen_index].reshape((-1, 2))
-        new_gene_edges_indices = np.concatenate([child_edges_indices, add_edge_indices])
-        new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
-        solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
+            add_edge_indices = candidate_edges_indices[chosen_index].reshape((-1, 2))
+            new_gene_edges_indices = np.concatenate([child_edges_indices, add_edge_indices])
+            new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
+            solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
 
-        gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
-        gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = random_free_node_pos.tolist()  # add random free node
-        solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
+            gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
+            gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = random_free_node_pos.tolist()  # add random free node
+            solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
 
-        # inherit edge_thickness
-        prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
-        prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
-        gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
-        additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
-        new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
-        solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
+            # inherit edge_thickness
+            prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
+            prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
+            gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
+            additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
+            new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
+            solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
 
+            result = self.problem.objective(solution)  # TODO objectiveの返り値を辞書型にして，常に垂線の長さを取得出来るようにする
+            new_gene_min_p_line_length = result[4]
         return solution
 
 
