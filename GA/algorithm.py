@@ -37,10 +37,8 @@ class Customized_NSGAII(NSGAII):
 
         gene_solutions = []
         print("引継ぎ開始")
-        # for i in tqdm(range(len(genes))):
-        #    gene_solutions.append(inherit_function(genes[i], self.population[0:len(genes)][i]))
-        for i in tqdm(range(1)):
-            gene_solutions.append(inherit_function(genes[4184], self.population[0:len(genes)][4184]))
+        for i in tqdm(range(len(genes))):
+            gene_solutions.append(inherit_function(genes[i], self.population[0:len(genes)][i]))
 
         self.population[0:len(genes)] = gene_solutions
 
