@@ -37,8 +37,11 @@ class Customized_NSGAII(NSGAII):
 
         gene_solutions = []
         print("引継ぎ開始")
-        for i in tqdm(range(len(genes))):
-            gene_solutions.append(inherit_function(genes[i], self.population[0:len(genes)][i]))
+        # for i in tqdm(range(len(genes))):
+        #    gene_solutions.append(inherit_function(genes[i], self.population[0:len(genes)][i]))
+        for i in tqdm(range(1)):
+            gene_solutions.append(inherit_function(genes[4184], self.population[0:len(genes)][4184]))
+
         self.population[0:len(genes)] = gene_solutions
 
         self.evaluate_all(self.population)
@@ -213,6 +216,8 @@ class FixNode_NSGAII(Customized_NSGAII):
                     solution_efficiency, solution_erased_node_num = solution_result["efficiency"], solution_result["erased_node_num"]
                     if np.isclose(gene_efficiency, solution_efficiency) and solution_erased_node_num == gene_erased_node_num:  # feasible解においてノード数が消えた状態で引き継がれることを阻止する為
                         break
+                else:
+                    break
 
         return solution
 
@@ -373,4 +378,6 @@ class FixNode_add_middle_point_NSGAII(Customized_NSGAII):
                     solution_efficiency, solution_erased_node_num = solution_result["efficiency"], solution_result["erased_node_num"]
                     if np.isclose(gene_efficiency, solution_efficiency) and solution_erased_node_num == gene_erased_node_num:  # feasible解においてノード数が消えた状態で引き継がれることを阻止する為
                         break
+                else:
+                    break
         return solution
