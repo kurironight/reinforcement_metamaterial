@@ -579,7 +579,13 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
         self.constraints[4] = "<=0"  # 指定ノード数との乖離数
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        min_p_line_length = result["min_p_line_length"]
+        erased_node_num = result["erased_node_num"]
         solution.objectives[:] = [efficiency]
         solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length, erased_node_num]
 
@@ -628,7 +634,8 @@ class StressConstraint_GA(FixnodeconstIncrementalNodeIncrease_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
+        return {"efficiency": float(efficiency), "cross_point_num": cross_point_num, "max_axial_stress": max_axial_stress, "trigger": trigger,
+                "min_p_line_length": min_p_line_length, "erased_node_num": erased_node_num}
 
 
 class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
@@ -648,7 +655,12 @@ class NodeNumFreeStressConstraint_GA(StressConstraint_GA):
         self.constraints[3] = ">=" + str(p_line_length_threshold)  # エッジが重複しないように，一つのノードからの各エッジに対する組み合わせの垂線の足の長さが閾値以上になるようにする
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        min_p_line_length = result["min_p_line_length"]
         solution.objectives[:] = [efficiency]
         solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length]
 
@@ -717,7 +729,8 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
+        return {"efficiency": float(efficiency), "cross_point_num": cross_point_num, "max_axial_stress": max_axial_stress, "trigger": trigger,
+                "min_p_line_length": min_p_line_length, "erased_node_num": erased_node_num}
 
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
@@ -784,7 +797,8 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
                                     output_nodes, self.output_vectors, frozen_nodes,
                                     processed_edges_indices, processed_edges_thickness)
 
-        return float(efficiency), cross_point_num, max_axial_stress, trigger, min_p_line_length, erased_node_num
+        return {"efficiency": float(efficiency), "cross_point_num": cross_point_num, "max_axial_stress": max_axial_stress, "trigger": trigger,
+                "min_p_line_length": min_p_line_length, "erased_node_num": erased_node_num}
 
 
 class FixnodeForceDisp_GA(ForceDisp_GA):
@@ -805,6 +819,12 @@ class FixnodeForceDisp_GA(ForceDisp_GA):
         self.constraints[4] = "<=0"  # 指定ノード数との乖離数
 
     def evaluate(self, solution):
-        [efficiency, cross_point_number, stress, adjacent, min_p_line_length, erased_node_num] = self.objective(solution)
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        min_p_line_length = result["min_p_line_length"]
+        erased_node_num = result["erased_node_num"]
         solution.objectives[:] = [efficiency]
         solution.constraints[:] = [cross_point_number, stress, adjacent, min_p_line_length, erased_node_num]

@@ -1,4 +1,5 @@
 from platypus import NSGAII, default_variator
+from tqdm import tqdm
 from GA.GA_class import *
 from tools.graph import *
 import numpy as np
@@ -34,7 +35,10 @@ class Customized_NSGAII(NSGAII):
         else:  # 固定ノード拡張時
             inherit_function = self.make_inherit_genes_with_increasing_fix_node
 
-        gene_solutions = [inherit_function(gene, solution) for solution, gene in zip(self.population[0:len(genes)], genes)]
+        gene_solutions = []
+        print("引継ぎ開始")
+        for i in tqdm(range(len(genes))):
+            gene_solutions.append(inherit_function(genes[i], self.population[0:len(genes)][i]))
         self.population[0:len(genes)] = gene_solutions
 
         self.evaluate_all(self.population)
@@ -160,6 +164,8 @@ class FixNode_NSGAII(Customized_NSGAII):
         pro_node_num = self.problem.node_num
 
         gene_feasible_condition = gene.feasible
+        gene_result = self.prior_problem.objective(gene)
+        gene_efficiency, gene_erased_node_num = gene_result["efficiency"], gene_result["erased_node_num"]
         gene = gene.variables
 
         child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
@@ -202,7 +208,11 @@ class FixNode_NSGAII(Customized_NSGAII):
             solution.evaluated = False
             self.evaluate_all([solution])
             if solution.feasible == gene_feasible_condition:
-                break
+                if gene_feasible_condition:
+                    solution_result = self.problem.objective(solution)
+                    solution_efficiency, solution_erased_node_num = solution_result["efficiency"], solution_result["erased_node_num"]
+                    if np.isclose(gene_efficiency, solution_efficiency) and solution_erased_node_num == gene_erased_node_num:  # feasible解においてノード数が消えた状態で引き継がれることを阻止する為
+                        break
 
         return solution
 
@@ -256,17 +266,23 @@ class FixNode_add_middle_point_NSGAII(Customized_NSGAII):
         return lengths_condition | under_d_cond
 
     def make_inherit_genes_with_increasing_free_node(self, gene, solution):
+        add_middle_edge_time_maximum_threshold = 20  # 中間エッジを付与しようとした回数の上限値
         prior_node_num = self.prior_problem.node_num
         pro_node_num = self.problem.node_num
+        gene_result = self.prior_problem.objective(gene)
+        gene_efficiency, gene_erased_node_num = gene_result["efficiency"], gene_result["erased_node_num"]
+
         gene_feasible_condition = gene.feasible
         gene = gene.variables
+        add_middle_edge_time = 0  # 中間エッジを付与しようとした回数
         while True:  # 引き継いだgeneが同じ条件になる為に何度も繰り返す
             # どのエッジの間にノードを追加するかを選ぶ
             child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
             remove_indexes = [not self.check_equal_to_condition_edge(i) for i in child_edges_indices]  # 条件ノード間ではないエッジのみ抽出
             edge_cond_remove_indexes = self.check_not_condition_for_selected_edge(child_nodes_pos, child_edges_indices)  # ノード間を満たすエッジのみ抽出
             candidate_indexes = np.where(remove_indexes & (~edge_cond_remove_indexes))[0]
-            if len(candidate_indexes) != 0:
+            if len(candidate_indexes) != 0 and (add_middle_edge_time <= add_middle_edge_time_maximum_threshold):
+                add_middle_edge_time += 1
                 selected_edge_index = np.random.choice(candidate_indexes)
                 selected_edge_indices = child_edges_indices[selected_edge_index]
                 child_edges_indices = np.delete(child_edges_indices, selected_edge_index, 0)
@@ -352,5 +368,9 @@ class FixNode_add_middle_point_NSGAII(Customized_NSGAII):
             solution.evaluated = False
             self.evaluate_all([solution])
             if solution.feasible == gene_feasible_condition:
-                break
+                if gene_feasible_condition:
+                    solution_result = self.problem.objective(solution)
+                    solution_efficiency, solution_erased_node_num = solution_result["efficiency"], solution_result["erased_node_num"]
+                    if np.isclose(gene_efficiency, solution_efficiency) and solution_erased_node_num == gene_erased_node_num:  # feasible解においてノード数が消えた状態で引き継がれることを阻止する為
+                        break
         return solution
