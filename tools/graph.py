@@ -757,3 +757,69 @@ def calc_minimum_perpendicular_line_length_edge_pair(nodes_pos, edges_indices, m
         return np.min(perpendicular_line_lengths)
     else:
         return max_length  # 最大の長さを与えることにする．
+
+
+def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thickness):
+    # それぞれのノードに対して，重複している部分のエッジの長さに対する割合を求めていく．そして，その最大値を出力する．
+    G = nx.Graph()
+    G.add_nodes_from(np.arange(len(nodes_pos)))
+    edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
+    G.add_weighted_edges_from(edge_info)
+
+    perpendicular_line_lengths = []  # 垂線の足の長さを収納するリスト
+    for target_node in G.nodes:
+        target_edges_indices = np.array(list(G.edges(target_node)), dtype=int)  # 始点は与えたノード番号から始まる．例：26の場合，[26,3],[26,7]
+        if target_edges_indices.shape[0] == 1:  # 一つしかエッジが存在しない場合
+            continue
+        else:
+            edge_points_1 = nodes_pos[target_node]
+            edge_points_2 = nodes_pos[target_edges_indices[:, 1]]
+            vec = edge_points_2 - edge_points_1
+            if target_edges_indices.shape[0] == 2:  # 2つしかエッジが存在しない場合
+                rad = np.arctan2(vec[:, 0], vec[:, 1])
+                rad_mod = np.mod(rad[0] - rad[1], 2 * np.pi)
+                # 90度未満のエッジ同士の垂線の足の長さのみ求める
+                if (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod):
+                    L1 = abs(np.linalg.norm(vec[0]))
+                    L2 = abs(np.linalg.norm(vec[1]))
+                    target_edges_indices = np.sort(target_edges_indices)
+                    width1 = G.edges[target_edges_indices[0]]["weight"]
+                    width2 = G.edges[target_edges_indices[1]]["weight"]
+                    sin_theta = np.abs(np.sin(rad_mod))
+                    A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * sin_theta)))
+                    d1 = width1 / (2 * np.tan(A1))
+                    A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * sin_theta)))
+                    d2 = width2 / (2 * np.tan(A2))
+                    perpendicular_line_lengths.extend([d1 / L1, d2 / L2])
+
+            else:
+                target_edges_indices = np.sort(target_edges_indices)
+
+                widths = np.array([G.edges[i]["weight"] for i in target_edges_indices])
+                vec_rad = np.arctan2(vec[:, 0], vec[:, 1])
+                vec_arg_rad_sort = np.argsort(vec_rad)
+                vec_rad_sort = vec_rad[vec_arg_rad_sort]
+                vec_sort = vec[vec_arg_rad_sort]
+                widths_sort = widths[vec_arg_rad_sort]  # 回転の順番通り
+
+                compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])
+                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1)])
+                compare_widths = np.stack([widths_sort, np.roll(widths_sort, 1)])
+                rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
+                # 90度未満のエッジ同士の垂線の足の長さのみ求める
+                under_90_mask = (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod)
+                sin_theta = np.abs(np.sin(rad_mod[under_90_mask]))
+                L1 = abs(np.linalg.norm(compare_vec[0, under_90_mask], axis=1))
+                L2 = abs(np.linalg.norm(compare_vec[1, under_90_mask], axis=1))
+                width1 = compare_widths[0, under_90_mask]
+                width2 = compare_widths[1, under_90_mask]
+                A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * sin_theta)))
+                d1 = width1 / (2 * np.tan(A1))
+                A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * sin_theta)))
+                d2 = width2 / (2 * np.tan(A2))
+                perpendicular_line_lengths.extend((d1 / L1).tolist())
+                perpendicular_line_lengths.extend((d2 / L2).tolist())
+    if len(perpendicular_line_lengths) != 0:
+        return np.max(perpendicular_line_lengths)
+    else:
+        return 0.0  # 一つも重複していない場合，0.0を出力する
