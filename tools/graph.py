@@ -1,4 +1,5 @@
 import networkx as nx
+from networkx.classes.function import edges
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
@@ -745,7 +746,7 @@ def calc_minimum_perpendicular_line_length_edge_pair(nodes_pos, edges_indices, m
                 vec_rad_sort = vec_rad[vec_arg_rad_sort]
                 vec_sort = vec[vec_arg_rad_sort]
                 compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])
-                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1)])
+                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1, axis=0)])
                 rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
                 # 90度未満のエッジ同士の垂線の足の長さのみ求める
                 under_90_mask = (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod)
@@ -785,10 +786,11 @@ def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thick
                     target_edges_indices = np.sort(target_edges_indices)
                     width1 = G.edges[target_edges_indices[0]]["weight"]
                     width2 = G.edges[target_edges_indices[1]]["weight"]
-                    sin_theta = np.abs(np.sin(rad_mod))
-                    A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * sin_theta)))
+                    sin_theta = np.abs(np.sin(rad_mod))  # rad_modを強制的に0<rad_mod < np.pi / 2の条件にしている．
+                    cos_theta = np.cos(rad_mod)
+                    A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * cos_theta)))
                     d1 = width1 / (2 * np.tan(A1))
-                    A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * sin_theta)))
+                    A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * cos_theta)))
                     d2 = width2 / (2 * np.tan(A2))
                     perpendicular_line_lengths.extend([d1 / L1, d2 / L2])
 
@@ -796,27 +798,28 @@ def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thick
                 target_edges_indices = np.sort(target_edges_indices)
 
                 widths = np.array([G.edges[i]["weight"] for i in target_edges_indices])
-                vec_rad = np.arctan2(vec[:, 0], vec[:, 1])
-                vec_arg_rad_sort = np.argsort(vec_rad)
+                vec_rad = np.arctan2(vec[:, 1], vec[:, 0])  # 各エッジの向いている角度.y,xの順で指定することに注意
+                vec_arg_rad_sort = np.argsort(vec_rad)  # 小さい順にソート
                 vec_rad_sort = vec_rad[vec_arg_rad_sort]
                 vec_sort = vec[vec_arg_rad_sort]
                 widths_sort = widths[vec_arg_rad_sort]  # 回転の順番通り
 
-                compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])
-                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1)])
+                compare_vec_rad = np.stack([vec_rad_sort, np.roll(vec_rad_sort, 1)])  # ソートされたエッジと，その一つ時計回りのエッジの角度を収納する
+                compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1, axis=0)])
                 compare_widths = np.stack([widths_sort, np.roll(widths_sort, 1)])
                 rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
                 # 90度未満のエッジ同士の垂線の足の長さのみ求める
                 under_90_mask = (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod)
                 sin_theta = np.abs(np.sin(rad_mod[under_90_mask]))
-                L1 = abs(np.linalg.norm(compare_vec[0, under_90_mask], axis=1))
-                L2 = abs(np.linalg.norm(compare_vec[1, under_90_mask], axis=1))
+                cos_theta = np.cos(rad_mod[under_90_mask])
+                L1 = abs(np.linalg.norm(compare_vec[0, under_90_mask], axis=1))  # 反時計回り側のエッジの長さ
+                L2 = abs(np.linalg.norm(compare_vec[1, under_90_mask], axis=1))  # 時計回り側のエッジの長さ
                 width1 = compare_widths[0, under_90_mask]
                 width2 = compare_widths[1, under_90_mask]
-                A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * sin_theta)))
-                d1 = width1 / (2 * np.tan(A1))
-                A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * sin_theta)))
-                d2 = width2 / (2 * np.tan(A2))
+                A1 = np.arcsin((width1 * sin_theta) / (np.sqrt(width1**2 + width2**2 + 2 * width1 * width2 * cos_theta)))
+                d1 = width1 / (2 * np.tan(A1))  # 反時計回り側のエッジの重複部分の長さ
+                A2 = np.arcsin((width2 * sin_theta) / (np.sqrt(width2**2 + width1**2 + 2 * width1 * width2 * cos_theta)))
+                d2 = width2 / (2 * np.tan(A2))  # 時計回り側のエッジの重複部分の長さ
                 perpendicular_line_lengths.extend((d1 / L1).tolist())
                 perpendicular_line_lengths.extend((d2 / L2).tolist())
     if len(perpendicular_line_lengths) != 0:
