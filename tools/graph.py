@@ -779,8 +779,10 @@ def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thick
             if target_edges_indices.shape[0] == 2:  # 2つしかエッジが存在しない場合
                 rad = np.arctan2(vec[:, 0], vec[:, 1])
                 rad_mod = np.mod(rad[0] - rad[1], 2 * np.pi)
+                if (0 == rad_mod) | (rad_mod == 2 * np.pi):  # もし0度の完全なる重複が存在した場合，1000を返す
+                    return 1000
                 # 90度未満のエッジ同士の垂線の足の長さのみ求める
-                if (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod):
+                if ((0 < rad_mod) & (rad_mod < np.pi / 2)) | ((3 / 2 * np.pi < rad_mod) & (rad_mod < 2 * np.pi)):
                     L1 = abs(np.linalg.norm(vec[0]))
                     L2 = abs(np.linalg.norm(vec[1]))
                     target_edges_indices = np.sort(target_edges_indices)
@@ -808,8 +810,10 @@ def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thick
                 compare_vec = np.stack([vec_sort, np.roll(vec_sort, 1, axis=0)])
                 compare_widths = np.stack([widths_sort, np.roll(widths_sort, 1)])
                 rad_mod = np.mod(compare_vec_rad[0] - compare_vec_rad[1], 2 * np.pi)
+                if np.any((0 == rad_mod) | (rad_mod == 2 * np.pi)):  # もし0度の完全なる重複が存在した場合，1000を返す
+                    return 1000
                 # 90度未満のエッジ同士の垂線の足の長さのみ求める
-                under_90_mask = (rad_mod < np.pi / 2) | (3 / 2 * np.pi < rad_mod)
+                under_90_mask = ((0 < rad_mod) & (rad_mod < np.pi / 2)) | ((3 / 2 * np.pi < rad_mod) & (rad_mod < 2 * np.pi))
                 sin_theta = np.abs(np.sin(rad_mod[under_90_mask]))
                 cos_theta = np.cos(rad_mod[under_90_mask])
                 L1 = abs(np.linalg.norm(compare_vec[0, under_90_mask], axis=1))  # 反時計回り側のエッジの長さ
