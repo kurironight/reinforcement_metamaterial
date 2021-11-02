@@ -826,3 +826,33 @@ def calc_maximum_overlap_edge_length_ratio(nodes_pos, edges_indices, edges_thick
         return np.max(perpendicular_line_lengths)
     else:
         return 0.0  # 一つも重複していない場合，0.0を出力する
+
+
+def calc_segment_line_dist(nodes_pos, edges_indices):
+    # 各エッジ（線分）と各ノード（点）との距離を(edges,nodes)形式で出力する．
+    each_node_edges_indices_length = np.zeros((edges_indices.shape[0], nodes_pos.shape[0]))
+    for i, edge_indices in enumerate(edges_indices):
+        edge_points = np.stack([nodes_pos[edge_indices[0]], nodes_pos[edge_indices[1]]])
+        vec1 = edge_points[0] - edge_points[1]  # エッジを構成する節点同士のベクトル
+        vec2 = nodes_pos - edge_points[1]  # 各ノードとエッジを構成する節点のベクトル
+        vec_dot = vec1[0] * vec2[:, 0] + vec1[1] * vec2[:, 1]  # 内積
+        # 線分上に近接点が存在するエッジを抽出
+        segment_exist_mask = (0 <= vec_dot) & (vec_dot <= np.linalg.norm(vec1)**2)
+        segment_distances = np.abs(vec1[0] * vec2[segment_exist_mask, 1] - vec1[1] * vec2[segment_exist_mask, 0]) / (np.linalg.norm(vec1))
+        # 線分上に近接点が存在しないエッジは，エッジの端点と点との距離を抽出
+        vec3 = nodes_pos - edge_points[0]
+        node_segment_node_distances = np.min(np.stack([np.linalg.norm(vec2[~segment_exist_mask], axis=1), np.linalg.norm(vec3[~segment_exist_mask], axis=1)]), axis=0)
+        each_node_edges_indices_length[i, segment_exist_mask] = segment_distances
+        each_node_edges_indices_length[i, ~segment_exist_mask] = node_segment_node_distances
+    return each_node_edges_indices_length
+
+
+def calc_minimum_segment_line_dist_ratio(nodes_pos, edges_indices, edges_thickness):
+    # 各エッジ（線分）と各ノード（点）との距離に対するエッジの太さの割合の最小値を求める
+    each_node_edges_indices_length = calc_segment_line_dist(nodes_pos, edges_indices)
+    edges_thickness = edges_thickness.reshape((-1, 1))
+    edge_thick_ratio = each_node_edges_indices_length / edges_thickness
+    mask = np.ones(edge_thick_ratio.shape, dtype=bool)
+    for i, edge_indices in enumerate(edges_indices):
+        mask[i, edge_indices] = False
+    return np.min(each_node_edges_indices_length[mask] / edges_thickness)
