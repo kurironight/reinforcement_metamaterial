@@ -12,25 +12,25 @@ import time
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
-
+"""
 max_free_node_num = 18
 free_nodes_num = np.arange(1, max_free_node_num + 1)
 fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
 
 """
 # 単体実行用
-max_free_node_num = 4
+max_free_node_num = 6
 free_nodes_num = np.arange(max_free_node_num, max_free_node_num + 1)
 fix_nodes_num = np.ones(free_nodes_num.shape, dtype=np.int) * 8
-"""
-experient_num = 3
+
+experient_num = 5
 GA_type = FixnodeForceDisp_GA
 algorithm_type = FixNode_add_middle_point_NSGAII
 
 if __name__ == "__main__":
     # define the problem definition
-    save_dir = "GA/result/エッジ中間追加_ノード固定有η3"
-    generation = 30
+    save_dir = "GA/result/通常GA_n6_固定有"
+    generation = 500
     save_interval = 5
 
     parent_mult_value = 10  # 遺伝子個数に対する親の個数の比率
@@ -94,6 +94,17 @@ if __name__ == "__main__":
                         np.save(os.path.join(save_log_dir, "history.npy"), history)
                 with open(os.path.join(GA_result_dir, "parents.pk"), 'wb') as f:
                     pickle.dump(algorithm.result, f)
-
+        save_log_dir = os.path.join(GA_result_dir, "final")
+        if not os.path.exists(save_log_dir):
+            os.makedirs(save_log_dir)
+        if len(efficiency_results) != 0:
+            max_index = efficiency_results.index(max_efficiency)
+            feasible_solution = [s for s in algorithm.result if s.feasible]
+            max_solution = feasible_solution[max_index]
+            vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
+            with open(os.path.join(save_log_dir, "parents.pk"), 'wb') as f:
+                pickle.dump(algorithm.result, f)
+            problem.calculate_efficiency(*problem.convert_var_to_arg(vars), np_save_dir=save_log_dir)
+        np.save(os.path.join(save_log_dir, "history.npy"), history)
         elapsed_time = time.time() - start
         print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
