@@ -850,9 +850,14 @@ def calc_segment_line_dist(nodes_pos, edges_indices):
 def calc_minimum_segment_line_dist_ratio(nodes_pos, edges_indices, edges_thickness):
     # 各エッジ（線分）と各ノード（点）との距離に対するエッジの太さの割合の最小値を求める
     each_node_edges_indices_length = calc_segment_line_dist(nodes_pos, edges_indices)
-    edges_thickness = edges_thickness.reshape((-1, 1))
-    edge_thick_ratio = each_node_edges_indices_length / edges_thickness
-    mask = np.ones(edge_thick_ratio.shape, dtype=bool)
+    each_node_max_thickness = []  # 各ノードに関わるエッジの太さの内，最大のものを収納するリスト
+    for i in range(nodes_pos.shape[0]):
+        i_include_edges_indices_index = np.argwhere((edges_indices[:, 0] == i) | (edges_indices[:, 1] == i)).squeeze()
+        each_node_max_thickness.append(np.max(edges_thickness[i_include_edges_indices_index]))
+    average_edges_thickness = np.tile(edges_thickness.reshape((-1, 1)), nodes_pos.shape[0])
+    average_edges_thickness = (average_edges_thickness + np.array(each_node_max_thickness)) / 2
+    edge_thick_ratio = each_node_edges_indices_length / average_edges_thickness
+    mask = np.ones(edge_thick_ratio.shape, dtype=bool)  # エッジを構成するノードを抜いたmask
     for i, edge_indices in enumerate(edges_indices):
         mask[i, edge_indices] = False
-    return np.min(each_node_edges_indices_length[mask] / edges_thickness)
+    return np.min(edge_thick_ratio[mask])
