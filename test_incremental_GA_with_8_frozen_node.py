@@ -94,17 +94,17 @@ if __name__ == "__main__":
                         np.save(os.path.join(save_log_dir, "history.npy"), history)
                 with open(os.path.join(GA_result_dir, "parents.pk"), 'wb') as f:
                     pickle.dump(algorithm.result, f)
-        save_log_dir = os.path.join(GA_result_dir, "final")
-        if not os.path.exists(save_log_dir):
-            os.makedirs(save_log_dir)
-        if len(efficiency_results) != 0:
-            max_index = efficiency_results.index(max_efficiency)
-            feasible_solution = [s for s in algorithm.result if s.feasible]
-            max_solution = feasible_solution[max_index]
-            vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
-            with open(os.path.join(save_log_dir, "parents.pk"), 'wb') as f:
-                pickle.dump(algorithm.result, f)
-            problem.calculate_efficiency(*problem.convert_var_to_arg(vars), np_save_dir=save_log_dir)
-        np.save(os.path.join(save_log_dir, "history.npy"), history)
+            save_log_dir = os.path.join(GA_result_dir, "final")
+            if not os.path.exists(save_log_dir):
+                os.makedirs(save_log_dir)
+            if len(efficiency_results) != 0:
+                max_index = efficiency_results.index(max_efficiency)
+                feasible_solution = [s for s in algorithm.result if s.feasible]
+                max_solution = feasible_solution[max_index]
+                vars = [problem.types[i].decode(max_solution.variables[i]) for i in range(problem.nvars)]
+                with open(os.path.join(save_log_dir, "parents.pk"), 'wb') as f:
+                    pickle.dump(algorithm.result, f)
+                problem.calculate_efficiency(*problem.convert_var_to_arg(vars), np_save_dir=save_log_dir)
+            np.save(os.path.join(save_log_dir, "history.npy"), history)
         elapsed_time = time.time() - start
         print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
