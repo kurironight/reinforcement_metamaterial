@@ -1,11 +1,11 @@
 from platypus import NSGAII, Problem, nondominated, Integer, Real, Binary, \
     CompoundOperator, SBX, HUX, PM, BitFlip
-from .condition import condition, condition_only_input_output
+from .condition import condition, condition_only_input_output, venus_trap_condition
 from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
     remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph, count_cross_points,\
-    conprocess_condition_edge_indices
+    conprocess_condition_edge_indices, calc_equation
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
@@ -338,7 +338,6 @@ class FixnodeconstIncrementalNodeIncrease_GA(Barfem_GA):
         self.constraints[:] = "<=0"
         self.penalty_constraint_value = 10000
         self.distance_threshold = distance_threshold
-        assert distance_threshold < float(1 / 8), "固定ノードが同じノードとして処理される"
 
     def evaluate(self, solution):
         [efficiency, cross_point_number, erased_node_num] = self.objective(solution)
@@ -842,3 +841,138 @@ class FixnodeForceDisp_GA(ForceDisp_GA):
         min_edge_node_dist_ratio = result["min_edge_node_dist_ratio"]
         solution.objectives[:] = [efficiency]
         solution.constraints[:] = [cross_point_number, stress, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio]
+
+
+class VenusFrytrap_GA(FixnodeForceDisp_GA):
+    # ハエトリグサのGAモデル
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, constraint_stress=1e10, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+        super(VenusFrytrap_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
+        self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
+            self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
+            self.L, self.A\
+            = venus_trap_condition(self.b)
+        # 定義しなおしの箇所
+        self.input_output_node_num = 8  # 入力ノードと出力ノードの合計数
+        self.node_num = free_node_num + fix_node_num + self.input_output_node_num
+        condition_node_num = self.condition_nodes_pos.shape[0]
+        self.gene_node_pos_num = (self.node_num - condition_node_num) * 2
+        self.gene_edge_thickness_num = int(self.node_num * (self.node_num - 1) / 2)
+        self.gene_edge_indices_num = self.gene_edge_thickness_num
+
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, np.max(self.condition_nodes_pos[:, 0]))  # ノードの位置座標を示す
+        self.types[1::2] = Real(0, 1)  # ノードのy座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        #self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[1] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[2] = "<=" + str(overlap_edge_length_threshold)  # エッジが重複していいエッジの長さの割合の最大値
+        self.constraints[3] = "<=0"  # 指定ノード数との乖離数
+        self.constraints[4] = ">=" + str(minimum_edge_node_dist_ratio_threshold)  # エッジとノードとの距離のエッジの太さに対する割合の最小値
+
+    def evaluate(self, solution):
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        max_overlap_edge_length_ratio = result["max_overlap_edge_length_ratio"]
+        erased_node_num = result["erased_node_num"]
+        min_edge_node_dist_ratio = result["min_edge_node_dist_ratio"]
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio]
+
+    def erase_edge_which_out_from_beam(self, edges_indices, edges_thickness):
+        # 元のノード番号における[0,2],[0,3],[0,4],[1,3],[1,4],[2,4],[5,7],[4,5],[4,6],[1,9],[0,9]を排除
+        # [1,8],[0,8],[2,9]が怪しい．要チェック
+        erase_edge_list = np.array([[0, 2], [0, 3], [0, 4], [1, 3], [1, 4], [2, 4], [5, 7],
+                                    [4, 5], [4, 6], [1, 9], [0, 9], [1, 8], [0, 8], [2, 9]])
+        remove_indexes = []
+        for i, edge_indice in enumerate(edges_indices):
+            if np.any((erase_edge_list[:, 0] == edge_indice[0]) & (erase_edge_list[:, 1] == edge_indice[1])):
+                remove_indexes.append(i)
+        edges_indices = np.delete(edges_indices, remove_indexes, 0)
+        edges_thickness = np.delete(edges_thickness, remove_indexes, 0)
+        return edges_indices, edges_thickness
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
+        if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+            nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+        # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+        processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+        # distance_thresholdにより，条件ノード同士が近接と判断されない限り，
+        # processed_nodes_posにおける条件ノードの位置はそのままになっている．
+
+        # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+        input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+            = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                        self.condition_edges_indices, self.condition_edges_thickness,
+                                                        processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+        # 条件ノード部分同士のエッジのうち，構造の外側に存在するエッジを除去する．
+        processed_edges_indices, processed_edges_thickness = self.erase_edge_which_out_from_beam(processed_edges_indices, processed_edges_thickness)
+        cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+        # efficiencyを計算する
+        input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+        displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                             self.input_vectors, frozen_nodes, mode='force', E=self.E, b=self.b)
+        efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=self.E, A=self.A, L=self.L)
+        erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+        axial_stresses = calc_axial_stress(stresses)
+        max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
+        max_overlap_edge_length_ratio = calc_maximum_overlap_edge_length_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+        min_edge_node_dist_ratio = calc_minimum_segment_line_dist_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+        if np_save_dir:  # グラフの画像を保存する
+            os.makedirs(np_save_dir, exist_ok=True)
+            render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+            save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                output_nodes, self.output_vectors, frozen_nodes,
+                                processed_edges_indices, processed_edges_thickness)
+
+        return {"efficiency": float(efficiency), "cross_point_num": cross_point_num, "max_axial_stress": max_axial_stress, "trigger": trigger,
+                "max_overlap_edge_length_ratio": max_overlap_edge_length_ratio, "erased_node_num": erased_node_num, "min_edge_node_dist_ratio": min_edge_node_dist_ratio}
+
+    def convert_ratio_y_coord_to_y_coord(self, x, y):
+        # gene_node_posのy座標[0-1]から実際のy座標に変換
+        edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
+        edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[3])
+        edge3_coeff = calc_equation(self.condition_nodes_pos[3], self.condition_nodes_pos[4])
+        edge4_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[7])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[8])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[8], self.condition_nodes_pos[9])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[4], self.condition_nodes_pos[9])
+
+        if (x >= 0) and (x < self.condition_nodes_pos[7][0]):
+            upper_edge_coeff = edge4_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[7][0]) and (x < self.condition_nodes_pos[2][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[8][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[8][0]) and (x < self.condition_nodes_pos[3][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[9][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge3_coeff
+        elif (x >= self.condition_nodes_pos[9][0]) and (x <= self.condition_nodes_pos[4][0]):
+            upper_edge_coeff = edge7_coeff
+            lower_edge_coeff = edge3_coeff
+        return (lower_edge_coeff[0] * x + lower_edge_coeff[1]) * (1 - y) + (upper_edge_coeff[0] * x + upper_edge_coeff[1]) * y
+
+    def convert_var_to_arg(self, vars):
+        nodes_pos = np.array(vars[0:self.gene_node_pos_num])
+        nodes_pos = nodes_pos.reshape([int(self.gene_node_pos_num / 2), 2])
+        # y座標における比率部分を実際の座標に修正
+        for i, node_pos in enumerate(nodes_pos):
+            nodes_pos[i][1] = self.convert_ratio_y_coord_to_y_coord(node_pos[0], node_pos[1])
+
+        edges_thickness = vars[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num]
+        adj_element = vars[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num]
+        adj_element = np.array(adj_element).astype(np.int).squeeze()
+        return nodes_pos, edges_thickness, adj_element

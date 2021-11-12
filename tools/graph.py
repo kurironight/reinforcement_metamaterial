@@ -866,3 +866,11 @@ def calc_minimum_segment_line_dist_ratio(nodes_pos, edges_indices, edges_thickne
     for i, edge_indices in enumerate(edges_indices):
         mask[i, edge_indices] = False
     return np.min(edge_thick_ratio[mask])
+
+
+def calc_equation(point1, point2):
+    # point1とpoint2を通る方程式の係数を求める．
+    # 返す係数はy=ax+bのうち，(a,b)の順に返す．
+    a = (point2[1] - point1[1]) / (point2[0] - point1[0])
+    b = (point2[0] * point1[1] - point1[0] * point2[1]) / (point2[0] - point1[0])
+    return (a, b)

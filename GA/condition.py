@@ -96,7 +96,7 @@ def condition_only_input_output():
         origin_input_vectors, origin_output_nodes, origin_output_vectors, []
 
 
-def venus_trap_condition():
+def venus_trap_condition(b):
     midrib_length = 6  # 長さ6mm
     left_thickness = 1  # 左端の幅1mm
     right_thickness = 0.5  # 左端の幅0.5mm
@@ -286,9 +286,8 @@ def venus_trap_condition():
     frozen_nodes = [0, 5]
 
     # 代表長さ，代表面積の測定
-    b = 0.2  # 奥行
     L = np.sum(lengths)  # 代表長さ
     A = b * L  # 代表面積
 
     return nodes_pos, input_nodes, input_vectors, output_nodes, output_vectors,\
-        frozen_nodes, edges_indices, edges_thickness
+        frozen_nodes, edges_indices, edges_thickness, L, A
