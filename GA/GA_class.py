@@ -1,6 +1,6 @@
 from platypus import NSGAII, Problem, nondominated, Integer, Real, Binary, \
     CompoundOperator, SBX, HUX, PM, BitFlip
-from .condition import condition, condition_only_input_output, venus_trap_condition, venus_trap_condition_high_resolution
+from .condition import condition, condition_only_input_output, venus_trap_condition, venus_trap_condition_high_resolution, venus_trap_condition_high_resolution_v2
 from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
@@ -1109,6 +1109,114 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
             upper_edge_coeff = edge6_coeff
             lower_edge_coeff = edge3_coeff
         elif (x >= self.condition_nodes_pos[11][0]) and (x <= self.condition_nodes_pos[5][0]):
+            upper_edge_coeff = edge7_coeff
+            lower_edge_coeff = edge3_coeff
+        lower_point = (lower_edge_coeff[0] * x + lower_edge_coeff[1])
+        higher_point = (upper_edge_coeff[0] * x + upper_edge_coeff[1])
+        return (y - lower_point) / (higher_point - lower_point)
+
+
+class VenusFrytrap_GA_hrv2(VenusFrytrap_GA):
+    # ハエトリグサのGAモデル
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, constraint_stress=1e10, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+        super(VenusFrytrap_GA_hrv2, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
+        self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
+            self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
+            self.L, self.A\
+            = venus_trap_condition_high_resolution_v2(self.b)
+        # 定義しなおしの箇所
+        self.input_output_node_num = 12  # 入力ノードと出力ノードの合計数
+        self.node_num = free_node_num + fix_node_num + self.input_output_node_num
+        condition_node_num = self.condition_nodes_pos.shape[0]
+        self.gene_node_pos_num = (self.node_num - condition_node_num) * 2
+        self.gene_edge_thickness_num = int(self.node_num * (self.node_num - 1) / 2)
+        self.gene_edge_indices_num = self.gene_edge_thickness_num
+
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, np.max(self.condition_nodes_pos[:, 0]))  # ノードの位置座標を示す
+        self.types[1::2] = Real(0, 1)  # ノードのy座標を示す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        #self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[1] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[2] = "<=" + str(overlap_edge_length_threshold)  # エッジが重複していいエッジの長さの割合の最大値
+        self.constraints[3] = "<=0"  # 指定ノード数との乖離数
+        self.constraints[4] = ">=" + str(minimum_edge_node_dist_ratio_threshold)  # エッジとノードとの距離のエッジの太さに対する割合の最小値
+
+    def erase_edge_which_out_from_beam(self, edges_indices, edges_thickness):
+        # 元のノード番号における[0,2],[0,3],[0,4],[1,3],[1,4],[2,4],[5,7],[4,5],[4,6],[1,9],[0,9]を排除
+
+        erase_edge_list = np.array([[0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 11], [0, 12], [0, 13],
+                                    [1, 3], [1, 4], [1, 5], [1, 6], [1, 11], [1, 12], [1, 13],
+                                    [2, 4], [2, 5], [2, 6], [2, 13], [3, 5], [3, 6], [3, 13],
+                                    [4, 6], [4, 7], [5, 7], [5, 8], [5, 9],
+                                    [6, 7], [6, 8], [6, 9], [7, 9], [9, 11], [11, 13]])
+        remove_indexes = []
+        for i, edge_indice in enumerate(edges_indices):
+            if np.any((erase_edge_list[:, 0] == edge_indice[0]) & (erase_edge_list[:, 1] == edge_indice[1])):
+                remove_indexes.append(i)
+        edges_indices = np.delete(edges_indices, remove_indexes, 0)
+        edges_thickness = np.delete(edges_thickness, remove_indexes, 0)
+        return edges_indices, edges_thickness
+
+    def convert_ratio_y_coord_to_y_coord(self, x, y):
+        # gene_node_posのy座標[0-1]から実際のy座標に変換
+        edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
+        edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[4])
+        edge3_coeff = calc_equation(self.condition_nodes_pos[4], self.condition_nodes_pos[6])
+        edge4_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[9])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[11])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[11], self.condition_nodes_pos[13])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[6], self.condition_nodes_pos[13])
+
+        if (x >= 0) and (x < self.condition_nodes_pos[9][0]):
+            upper_edge_coeff = edge4_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[2][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[11][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[11][0]) and (x < self.condition_nodes_pos[4][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[4][0]) and (x < self.condition_nodes_pos[13][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge3_coeff
+        elif (x >= self.condition_nodes_pos[13][0]) and (x <= self.condition_nodes_pos[6][0]):
+            upper_edge_coeff = edge7_coeff
+            lower_edge_coeff = edge3_coeff
+        return (lower_edge_coeff[0] * x + lower_edge_coeff[1]) * (1 - y) + (upper_edge_coeff[0] * x + upper_edge_coeff[1]) * y
+
+    def convert_y_coord_to_ratio_y_coord(self, x, y):
+        # 実際のy座標からgene_node_posのy座標[0-1]に変換
+        edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
+        edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[4])
+        edge3_coeff = calc_equation(self.condition_nodes_pos[4], self.condition_nodes_pos[6])
+        edge4_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[9])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[11])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[11], self.condition_nodes_pos[13])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[6], self.condition_nodes_pos[13])
+        if (x >= 0) and (x < self.condition_nodes_pos[9][0]):
+            upper_edge_coeff = edge4_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[2][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[11][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[11][0]) and (x < self.condition_nodes_pos[4][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[4][0]) and (x < self.condition_nodes_pos[13][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge3_coeff
+        elif (x >= self.condition_nodes_pos[13][0]) and (x <= self.condition_nodes_pos[6][0]):
             upper_edge_coeff = edge7_coeff
             lower_edge_coeff = edge3_coeff
         lower_point = (lower_edge_coeff[0] * x + lower_edge_coeff[1])
