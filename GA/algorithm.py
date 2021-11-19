@@ -465,7 +465,7 @@ class Venus_FixNode_add_middle_point_NSGAII(FixNode_add_middle_point_NSGAII):
                     while True:
                         random_free_node_pos_gene_x = np.random.rand(1) * np.max(self.prior_problem.condition_nodes_pos[:, 0])
                         random_free_node_pos_gene_y = np.random.rand(1)
-                        random_free_node_pos = np.array([random_free_node_pos_gene_x, self.prior_problem.convert_ratio_y_coord_to_y_coord(random_free_node_pos_gene_x, random_free_node_pos_gene_y)])
+                        random_free_node_pos = np.array([random_free_node_pos_gene_x, self.prior_problem.convert_ratio_y_coord_to_y_coord(random_free_node_pos_gene_x, random_free_node_pos_gene_y)]).squeeze()
                         distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
                         if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
                             break
@@ -485,7 +485,7 @@ class Venus_FixNode_add_middle_point_NSGAII(FixNode_add_middle_point_NSGAII):
                 new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
                 solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
                 gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
-                gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = np.array([random_free_node_pos_gene_x, random_free_node_pos_gene_y]).tolist()  # add random free node
+                gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = np.array([random_free_node_pos_gene_x, random_free_node_pos_gene_y]).squeeze().tolist()  # add random free node
                 solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
 
                 # inherit edge_thickness
