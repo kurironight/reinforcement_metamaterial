@@ -965,6 +965,37 @@ class VenusFrytrap_GA(FixnodeForceDisp_GA):
             lower_edge_coeff = edge3_coeff
         return (lower_edge_coeff[0] * x + lower_edge_coeff[1]) * (1 - y) + (upper_edge_coeff[0] * x + upper_edge_coeff[1]) * y
 
+    def convert_y_coord_to_ratio_y_coord(self, x, y):
+        # 実際のy座標からgene_node_posのy座標[0-1]に変換
+        edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
+        edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[3])
+        edge3_coeff = calc_equation(self.condition_nodes_pos[3], self.condition_nodes_pos[4])
+        edge4_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[7])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[8])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[8], self.condition_nodes_pos[9])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[4], self.condition_nodes_pos[9])
+        if (x >= 0) and (x < self.condition_nodes_pos[7][0]):
+            upper_edge_coeff = edge4_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[7][0]) and (x < self.condition_nodes_pos[2][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge1_coeff
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[8][0]):
+            upper_edge_coeff = edge5_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[8][0]) and (x < self.condition_nodes_pos[3][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge2_coeff
+        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[9][0]):
+            upper_edge_coeff = edge6_coeff
+            lower_edge_coeff = edge3_coeff
+        elif (x >= self.condition_nodes_pos[9][0]) and (x <= self.condition_nodes_pos[4][0]):
+            upper_edge_coeff = edge7_coeff
+            lower_edge_coeff = edge3_coeff
+        lower_point = (lower_edge_coeff[0] * x + lower_edge_coeff[1])
+        higher_point = (upper_edge_coeff[0] * x + upper_edge_coeff[1])
+        return (y - lower_point) / (higher_point - lower_point)
+
     def convert_var_to_arg(self, vars):
         nodes_pos = np.array(vars[0:self.gene_node_pos_num])
         nodes_pos = nodes_pos.reshape([int(self.gene_node_pos_num / 2), 2])
