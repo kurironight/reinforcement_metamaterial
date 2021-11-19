@@ -398,7 +398,6 @@ def venus_trap_condition_high_resolution(b):
     point7 = point6
     point6 = ((point6 - point5)[0] / (point1[0])) * (point6 - point5) + point5
 
-    point11 = (point4 + point9) / 2
     point12 = (point3 + point4) / 2
     point13 = (point8 + point9) / 2
 
@@ -408,7 +407,6 @@ def venus_trap_condition_high_resolution(b):
                           point3,
                           point12,
                           point4,
-                          point11,
                           point5,
                           point6,
                           point7,
@@ -422,13 +420,13 @@ def venus_trap_condition_high_resolution(b):
                              [3, 4],
                              [4, 5],
                              [5, 6],
+                             [6, 7],
                              [7, 8],
                              [8, 9],
                              [9, 10],
                              [10, 11],
-                             [11, 12],
-                             [6, 12],
-                             [0, 7], [7, 12], ])
+                             [5, 11],
+                             [0, 7]])
 
     edges_thickness = np.ones(edges_indices.shape[0]) * edge_width
 
@@ -471,28 +469,26 @@ def venus_trap_condition_high_resolution(b):
     node3_pressure_vector = calc_downer_pressure(3, nodes_pos, lengths, edges_indices, p)
     node4_pressure_vector = calc_downer_pressure(4, nodes_pos, lengths, edges_indices, p)
     node5_pressure_vector = calc_downer_pressure(5, nodes_pos, lengths, edges_indices, p)
-    node6_pressure_vector = calc_downer_pressure(6, nodes_pos, lengths, edges_indices, p)
 
+    node7_pressure_vector = calc_upper_pressure(7, nodes_pos, lengths, edges_indices, p)
     node8_pressure_vector = calc_upper_pressure(8, nodes_pos, lengths, edges_indices, p)
     node9_pressure_vector = calc_upper_pressure(9, nodes_pos, lengths, edges_indices, p)
     node10_pressure_vector = calc_upper_pressure(10, nodes_pos, lengths, edges_indices, p)
-    node11_pressure_vector = calc_upper_pressure(11, nodes_pos, lengths, edges_indices, p)
 
     # [4,9]に関してのみ例外対応
-    vertical_vector1 = calc_vertical_vector(nodes_pos[6], nodes_pos[12])
-    edge1_length = lengths[find_edge_indice_index([6, 12], edges_indices)]
-    vertical_vector2 = calc_vertical_vector(nodes_pos[11], nodes_pos[12])
+    vertical_vector1 = calc_vertical_vector(nodes_pos[5], nodes_pos[11])
+    edge1_length = lengths[find_edge_indice_index([5, 11], edges_indices)]
+    vertical_vector2 = calc_vertical_vector(nodes_pos[10], nodes_pos[11])
 
-    edge2_length = lengths[find_edge_indice_index([11, 12], edges_indices)]
-    node12_pressure_vector = (edge1_length / 2 * vertical_vector1 + -edge2_length / 2 * vertical_vector2) * p
+    edge2_length = lengths[find_edge_indice_index([10, 11], edges_indices)]
+    node11_pressure_vector = (edge1_length / 2 * vertical_vector1 + -edge2_length / 2 * vertical_vector2) * p
 
-    input_nodes = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12]
+    input_nodes = [1, 2, 3, 4, 5, 7, 8, 9, 10, 11]
     input_vectors = np.array([node1_pressure_vector, node2_pressure_vector, node3_pressure_vector, node4_pressure_vector, node5_pressure_vector,
-                              node6_pressure_vector, node8_pressure_vector, node9_pressure_vector, node10_pressure_vector, node11_pressure_vector,
-                              node12_pressure_vector])
-    output_nodes = [12]
-    output_vectors = calc_vertical_vector(nodes_pos[12], nodes_pos[0])
-    frozen_nodes = [0, 7]
+                              node7_pressure_vector, node8_pressure_vector, node9_pressure_vector, node10_pressure_vector, node11_pressure_vector])
+    output_nodes = [11]
+    output_vectors = calc_vertical_vector(nodes_pos[11], nodes_pos[0])
+    frozen_nodes = [0, 6]
 
     # 代表長さ，代表面積の測定
     L = np.sum(lengths)  # 代表長さ

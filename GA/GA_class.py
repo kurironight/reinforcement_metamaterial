@@ -1018,7 +1018,7 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
             self.L, self.A\
             = venus_trap_condition_high_resolution(self.b)
         # 定義しなおしの箇所
-        self.input_output_node_num = 11  # 入力ノードと出力ノードの合計数
+        self.input_output_node_num = 10  # 入力ノードと出力ノードの合計数
         self.node_num = free_node_num + fix_node_num + self.input_output_node_num
         condition_node_num = self.condition_nodes_pos.shape[0]
         self.gene_node_pos_num = (self.node_num - condition_node_num) * 2
@@ -1042,10 +1042,10 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
     def erase_edge_which_out_from_beam(self, edges_indices, edges_thickness):
         # 元のノード番号における[0,2],[0,3],[0,4],[1,3],[1,4],[2,4],[5,7],[4,5],[4,6],[1,9],[0,9]を排除
 
-        erase_edge_list = np.array([[0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 10], [0, 11], [0, 12],
-                                    [1, 3], [1, 4], [1, 5], [1, 6], [1, 10], [1, 11], [1, 12],
-                                    [2, 4], [2, 5], [2, 6], [2, 12], [3, 5], [4, 7], [4, 8], [5, 6], [5, 7], [5, 8], [5, 12],
-                                    [6, 7], [6, 8], [7, 9]])
+        erase_edge_list = np.array([[0, 2], [0, 3], [0, 4], [0, 5], [0, 9], [0, 10], [0, 11],
+                                    [1, 3], [1, 4], [1, 5], [1, 9], [1, 10], [1, 11],
+                                    [2, 4], [2, 5], [2, 11], [3, 5], [4, 6], [4, 7], [5, 6], [5, 7], [5, 11],
+                                    [6, 8], [9, 11]])
         remove_indexes = []
         for i, edge_indice in enumerate(edges_indices):
             if np.any((erase_edge_list[:, 0] == edge_indice[0]) & (erase_edge_list[:, 1] == edge_indice[1])):
@@ -1059,27 +1059,27 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
         edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
         edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[3])
         edge3_coeff = calc_equation(self.condition_nodes_pos[3], self.condition_nodes_pos[5])
-        edge4_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[9])
-        edge5_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[10])
-        edge6_coeff = calc_equation(self.condition_nodes_pos[10], self.condition_nodes_pos[12])
-        edge7_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[12])
+        edge4_coeff = calc_equation(self.condition_nodes_pos[6], self.condition_nodes_pos[8])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[8], self.condition_nodes_pos[9])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[11])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[11])
 
-        if (x >= 0) and (x < self.condition_nodes_pos[9][0]):
+        if (x >= 0) and (x < self.condition_nodes_pos[8][0]):
             upper_edge_coeff = edge4_coeff
             lower_edge_coeff = edge1_coeff
-        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[2][0]):
+        elif (x >= self.condition_nodes_pos[8][0]) and (x < self.condition_nodes_pos[2][0]):
             upper_edge_coeff = edge5_coeff
             lower_edge_coeff = edge1_coeff
-        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[10][0]):
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[9][0]):
             upper_edge_coeff = edge5_coeff
             lower_edge_coeff = edge2_coeff
-        elif (x >= self.condition_nodes_pos[10][0]) and (x < self.condition_nodes_pos[3][0]):
+        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[3][0]):
             upper_edge_coeff = edge6_coeff
             lower_edge_coeff = edge2_coeff
-        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[12][0]):
+        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[11][0]):
             upper_edge_coeff = edge6_coeff
             lower_edge_coeff = edge3_coeff
-        elif (x >= self.condition_nodes_pos[12][0]) and (x <= self.condition_nodes_pos[5][0]):
+        elif (x >= self.condition_nodes_pos[11][0]) and (x <= self.condition_nodes_pos[5][0]):
             upper_edge_coeff = edge7_coeff
             lower_edge_coeff = edge3_coeff
         return (lower_edge_coeff[0] * x + lower_edge_coeff[1]) * (1 - y) + (upper_edge_coeff[0] * x + upper_edge_coeff[1]) * y
@@ -1089,26 +1089,26 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
         edge1_coeff = calc_equation(self.condition_nodes_pos[0], self.condition_nodes_pos[2])
         edge2_coeff = calc_equation(self.condition_nodes_pos[2], self.condition_nodes_pos[3])
         edge3_coeff = calc_equation(self.condition_nodes_pos[3], self.condition_nodes_pos[5])
-        edge4_coeff = calc_equation(self.condition_nodes_pos[7], self.condition_nodes_pos[9])
-        edge5_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[10])
-        edge6_coeff = calc_equation(self.condition_nodes_pos[10], self.condition_nodes_pos[12])
-        edge7_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[12])
-        if (x >= 0) and (x < self.condition_nodes_pos[9][0]):
+        edge4_coeff = calc_equation(self.condition_nodes_pos[6], self.condition_nodes_pos[8])
+        edge5_coeff = calc_equation(self.condition_nodes_pos[8], self.condition_nodes_pos[9])
+        edge6_coeff = calc_equation(self.condition_nodes_pos[9], self.condition_nodes_pos[11])
+        edge7_coeff = calc_equation(self.condition_nodes_pos[5], self.condition_nodes_pos[11])
+        if (x >= 0) and (x < self.condition_nodes_pos[8][0]):
             upper_edge_coeff = edge4_coeff
             lower_edge_coeff = edge1_coeff
-        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[2][0]):
+        elif (x >= self.condition_nodes_pos[8][0]) and (x < self.condition_nodes_pos[2][0]):
             upper_edge_coeff = edge5_coeff
             lower_edge_coeff = edge1_coeff
-        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[10][0]):
+        elif (x >= self.condition_nodes_pos[2][0]) and (x < self.condition_nodes_pos[9][0]):
             upper_edge_coeff = edge5_coeff
             lower_edge_coeff = edge2_coeff
-        elif (x >= self.condition_nodes_pos[10][0]) and (x < self.condition_nodes_pos[3][0]):
+        elif (x >= self.condition_nodes_pos[9][0]) and (x < self.condition_nodes_pos[3][0]):
             upper_edge_coeff = edge6_coeff
             lower_edge_coeff = edge2_coeff
-        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[12][0]):
+        elif (x >= self.condition_nodes_pos[3][0]) and (x < self.condition_nodes_pos[11][0]):
             upper_edge_coeff = edge6_coeff
             lower_edge_coeff = edge3_coeff
-        elif (x >= self.condition_nodes_pos[12][0]) and (x <= self.condition_nodes_pos[5][0]):
+        elif (x >= self.condition_nodes_pos[11][0]) and (x <= self.condition_nodes_pos[5][0]):
             upper_edge_coeff = edge7_coeff
             lower_edge_coeff = edge3_coeff
         lower_point = (lower_edge_coeff[0] * x + lower_edge_coeff[1])
