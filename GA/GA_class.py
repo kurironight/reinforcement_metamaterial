@@ -1044,7 +1044,7 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
 
         erase_edge_list = np.array([[0, 2], [0, 3], [0, 4], [0, 5], [0, 9], [0, 10], [0, 11],
                                     [1, 3], [1, 4], [1, 5], [1, 9], [1, 10], [1, 11],
-                                    [2, 4], [2, 5], [2, 11], [3, 5], [4, 6], [4, 7], [5, 6], [5, 7], [5, 11],
+                                    [2, 4], [2, 5], [2, 11], [3, 5], [4, 6], [4, 7], [5, 6], [5, 7],
                                     [6, 8], [9, 11]])
         remove_indexes = []
         for i, edge_indice in enumerate(edges_indices):
