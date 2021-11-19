@@ -506,3 +506,81 @@ class Venus_FixNode_add_middle_point_NSGAII(FixNode_add_middle_point_NSGAII):
                 else:
                     break
         return solution
+
+
+class Venus_FixNode_NSGAII(FixNode_NSGAII):
+    def __init__(self, problem, prior_problem, gene_path,
+                 population_size=100,
+                 variator=None,
+                 archive=None,
+                 init_parents=None,
+                 **kwargs):
+        super(Venus_FixNode_NSGAII, self).__init__(problem, prior_problem, gene_path,
+                                                   population_size=population_size,
+                                                   variator=variator,
+                                                   archive=archive,
+                                                   **kwargs)
+
+    def make_inherit_genes_with_increasing_free_node(self, gene, solution):
+        prior_node_num = self.prior_problem.node_num
+        pro_node_num = self.problem.node_num
+
+        gene_feasible_condition = gene.feasible
+        gene_result = self.prior_problem.objective(gene)
+        gene_efficiency, gene_erased_node_num = gene_result["efficiency"], gene_result["erased_node_num"]
+        gene = gene.variables
+
+        child_nodes_pos, child_edges_indices, child_gene_edges_thickness = self.prior_problem.get_graph_info_from_genes(gene)
+        # 条件ノード部分同士のエッジのうち，構造の外側に存在するエッジを除去する．
+        child_edges_indices, child_gene_edges_thickness = self.prior_problem.erase_edge_which_out_from_beam(child_edges_indices, child_gene_edges_thickness)
+
+        child_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], child_nodes_pos[edges_indice[1]]]) for edges_indice in child_edges_indices])
+
+        while True:  # 引き継いだgeneが同じ条件になる為に何度も繰り返す
+            # inherit free node and edge_indices
+            while True:
+                while True:
+                    random_free_node_pos_gene_x = np.random.rand(1) * np.max(self.prior_problem.condition_nodes_pos[:, 0])
+                    random_free_node_pos_gene_y = np.random.rand(1)
+                    random_free_node_pos = np.array([random_free_node_pos_gene_x, self.prior_problem.convert_ratio_y_coord_to_y_coord(random_free_node_pos_gene_x, random_free_node_pos_gene_y)]).squeeze()
+                    distances = np.linalg.norm(child_nodes_pos - random_free_node_pos, axis=1)
+                    if not np.any(distances < self.prior_problem.distance_threshold):  # 新たに追加するノードが，他のノードとくっつかないようにする
+                        break
+                sort_index = np.argsort(distances)
+                fix_nodes_num = np.ones(prior_node_num, dtype=np.int) * (self.problem.node_num - 1)
+                candidate_edges_indices = np.stack([sort_index, fix_nodes_num], axis=1)
+                candidate_edge_points = np.array([np.stack([child_nodes_pos[edges_indice[0]], random_free_node_pos]) for edges_indice in candidate_edges_indices])
+                for index, edge_points in enumerate(candidate_edge_points):  # それぞれの候補エッジがどの既存のエッジとも交差しないかどうかをチェックする
+                    cross_check = np.all([not calc_cross_point(edge_points[0], edge_points[1], i[0], i[1])[0] for i in child_edge_points])
+                    if cross_check:
+                        chosen_index = index
+                        break
+                if cross_check:
+                    break
+            add_edge_indices = candidate_edges_indices[chosen_index].reshape((-1, 2))
+            new_gene_edges_indices = np.concatenate([child_edges_indices, add_edge_indices])
+            new_gene_edges_indices = revert_edge_indices_to_binary(new_gene_edges_indices, pro_node_num)
+            solution.variables[-self.problem.gene_edge_indices_num:] = new_gene_edges_indices
+            gene_node_pos = gene[0:self.prior_problem.gene_node_pos_num]
+            gene_node_pos[self.prior_problem.gene_node_pos_num:self.prior_problem.gene_node_pos_num] = np.array([random_free_node_pos_gene_x, random_free_node_pos_gene_y]).squeeze().tolist()  # add random free node
+            solution.variables[0:self.problem.gene_node_pos_num] = gene_node_pos
+            # inherit edge_thickness
+            prior_gene_node_pos_num = self.prior_problem.gene_node_pos_num
+            prior_gene_edge_thickness_num = self.prior_problem.gene_edge_thickness_num
+            gene_edge_thickness = gene[prior_gene_node_pos_num:prior_gene_node_pos_num + prior_gene_edge_thickness_num]
+            additional_edge_thickness = (self.problem.max_edge_thickness - self.problem.min_edge_thickness) * np.random.rand(prior_node_num) + self.problem.min_edge_thickness
+            new_gene_edge_thickness = self.add_free_node_edge_thickness_to_gene_edge_thickness(gene_edge_thickness, additional_edge_thickness, prior_node_num)
+            solution.variables[self.problem.gene_node_pos_num:self.problem.gene_node_pos_num + self.problem.gene_edge_thickness_num] = new_gene_edge_thickness
+
+            solution.evaluated = False
+            self.evaluate_all([solution])
+            if solution.feasible == gene_feasible_condition:
+                if gene_feasible_condition:
+                    solution_result = self.problem.objective(solution)
+                    solution_efficiency, solution_erased_node_num = solution_result["efficiency"], solution_result["erased_node_num"]
+                    if np.isclose(gene_efficiency, solution_efficiency) and solution_erased_node_num == gene_erased_node_num:  # feasible解においてノード数が消えた状態で引き継がれることを阻止する為
+                        break
+                else:
+                    break
+
+        return solution
