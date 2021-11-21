@@ -850,7 +850,7 @@ class VenusFrytrap_GA(FixnodeForceDisp_GA):
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
             self.L, self.A\
-            = venus_trap_condition(self.b)
+            = venus_trap_condition(self.b,self.condition_edge_thickness)
         # 定義しなおしの箇所
         self.input_output_node_num = 8  # 入力ノードと出力ノードの合計数
         self.node_num = free_node_num + fix_node_num + self.input_output_node_num
