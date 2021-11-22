@@ -1,0 +1,31 @@
+finish
+/clear
+/prep7
+k,1,0,0 ! sets a keypoint at (0,0)
+k,2,5,0 ! sets a keypoint at (5,0)
+k,3,5,5 ! sets a keypoint at (5,0)
+
+l,1,2,1 ! creates a line with 5 divisions from keypoints 1 to 2
+l,2,3,1 ! creates a line with 5 divisions from keypoints 1 to 2
+! you can remove lines with "ldel"
+et,1,3 ! sets element type 1 to beam3, the 2d beam element in ANSYS
+mp,ex,1,1 ! sets modulus of mtl 1
+mp,prxy,1,0.3 ! sets poissons ratio of mtl 1．ここは形状関数に使わないので，どんな値にしても特に意味はない．
+r,1,2,0.6667,2,0 ! defines property set 1 for the beam element (A,I,height=y方向の長さ,SHEARZ)．SHEARZは0にすることによって，せん断変形をしないように設定できる．
+r,2,4,5.3334,4,0
+mat,1 ! sets material to 1, not needed as it defaults to 1
+real,1 ! sets the property set to 1 (this is the default)
+lmesh,1 ! creates a mesh of elements on line1 (undo with lclear)
+real,2
+lmesh,2
+/eshape,1 !実際の形状を表示する
+NLGEOM,1 !大変形モードをオンにする
+finish
+
+
+/solu
+antype,static
+dk,1,all,0 !kp#1を固定 DK, KPOI, Lab, VALUEにおけるValueの値は，そのkeypointの自由度を示す．0の場合，何も自由に動けないことを示す．
+fk,3,fy,-1 !kp#2に下向きに1000Nを印加する
+solve
+finish
