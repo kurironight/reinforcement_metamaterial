@@ -101,7 +101,7 @@ def venus_trap_condition(b,edge_width):
     left_thickness = 1  # 左端の幅1mm
     right_thickness = 0.5  # 左端の幅0.5mm
 
-    edge_width = 0.025  # 条件エッジの太さ
+    edge_width = edge_width # 条件エッジの太さ
 
     record_point_1 = np.array([234, 111], dtype=float)
     record_point_2 = np.array([304, 177], dtype=float)
