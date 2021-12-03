@@ -5,6 +5,7 @@ import pickle
 import matplotlib.pyplot as plt
 import os
 from GA.condition import venus_trap_condition
+from .make_structure import make_node
 
 
 def convert_graph_info_to_mapdl_code(nodes_pos, edges_indices, edges_thickness, input_nodes,
@@ -532,6 +533,124 @@ def convert_graph_info_to_mapdl_code_solsh190(nodes_pos, frozen_nodes, b, pressu
     f.close()
 
 
+def make_curvature_shape_mapdl_code_solsh190(vertical_division, horizontal_division, pressure, vertical_length=6.5, horizontal_length=15,
+                                             curvature=0.04, left_thick=1, right_thick=0.5, daihenkei=True, substep=1e3, highest_step=1e3, min_step=1e1):
+    lower_nodes_pos, higher_nodes_pos = make_node(vertical_division, horizontal_division, vertical_length, horizontal_length,
+                                                  curvature, left_thick, right_thick)
+
+    path = 'haetorigusa_shell.apdl'
+    f = open(path, 'w')
+    f.write('finish')
+    f.write("\n")
+    f.write('/clear')
+    f.write("\n")
+    f.write('/prep7')
+    f.write("\n")
+
+    f.write("et,1,SOLSH190 ")
+    f.write("\n")
+
+    # 材料物性1 下側の層
+    f.write("MAT,1")
+    f.write("\n")
+    f.write("MPTEMP,1,0 ")
+    f.write("\n")
+    f.write("MPDATA,EX,1,,10 ")
+    f.write("\n")
+    f.write("MPDATA,PRXY,1,,0.3  ")
+    f.write("\n")
+    # 材料物性2 上側の層
+    f.write("MAT,2")
+    f.write("\n")
+    f.write("MPTEMP,1,0 ")
+    f.write("\n")
+    f.write("MPDATA,EX,2,,10 ")
+    f.write("\n")
+    f.write("MPDATA,PRXY,2,,0.3  ")
+    f.write("\n")
+
+    # 節点部分の設定
+    for i, node_pos in enumerate(lower_nodes_pos):
+        f.write("n,{},{},{},{}".format(i + 1, node_pos[0], node_pos[1], node_pos[2]))
+        f.write("\n")
+    for i, node_pos in enumerate(higher_nodes_pos):
+        f.write("n,{},{},{},{}".format(i + 1 + lower_nodes_pos.shape[0], node_pos[0], node_pos[1], node_pos[2]))
+        f.write("\n")
+
+    # シェル要素内部の構成
+    f.write("sect,1,shell,,  ")
+    f.write("\n")
+    f.write("secdata, 0.5,1,0.0,3")
+    f.write("\n")
+    f.write("secdata, 0.5,2,0.0,3")
+    f.write("\n")
+    f.write("secoffset,MID   ")
+    f.write("\n")
+    f.write("seccontrol,,,, , , ,")
+    f.write("\n")
+
+    lower_point_num = lower_nodes_pos.shape[0]
+    for vt in range(vertical_division - 1):
+        for ht in range(horizontal_division - 1):
+            [e1, e2, e3, e4] = [vt * horizontal_division + ht + 1, vt * horizontal_division + ht + 2,
+                                (vt + 1) * horizontal_division + ht + 2, (vt + 1) * horizontal_division + ht + 1]
+            f.write("e,{},{},{},{},{},{},{},{}".format(e1, e2, e3, e4,
+                                                       e1 + lower_point_num, e2 + lower_point_num, e3 + lower_point_num, e4 + lower_point_num))
+            f.write("\n")
+
+    if daihenkei:
+        f.write("AUTOTS,on")
+        f.write("\n")
+        f.write("NLGEOM,1")
+        f.write("\n")
+        f.write("NSUBST,{},{},{}".format(substep, highest_step, min_step))
+        f.write("\n")
+
+    f.write('finish')
+    f.write("\n")
+    f.write('/solu')
+    f.write("\n")
+    f.write('static')
+    f.write("\n")
+
+    # 解析条件設定
+    # 固定ノード設定
+    for ht in range(horizontal_division):
+        f.write("d,{},all,0".format(ht + 1))
+        f.write("\n")
+        f.write("d,{},all,0".format(ht + 1 + lower_point_num))
+        f.write("\n")
+
+    # 外力設定
+    f.write("ESEL,ALL")
+    f.write("\n")
+    f.write("SFCONTROL,0 !これをすることで，要素のもつ座標系を使用することを宣言する")
+    f.write("\n")
+    f.write("SFE,ALL,1,PRES,,-{} !上方向面圧".format(pressure))
+    f.write("\n")
+    f.write("SFE,ALL,6,PRES,,-{} !下方向面圧".format(pressure))
+    f.write("\n")
+
+    # 右方向に圧力あると下方向に移動する
+    for he in range(horizontal_division - 1):
+        elem_num = (he + 1) + (horizontal_division - 1) * (vertical_division - 2)
+        f.write("ESEL,S,ELEM,,{},{}".format(elem_num, elem_num))  # 一番右端の要素の右面に圧力設定
+        f.write("\n")
+        f.write("SFE,ALL,4,PRES,,-{} !右方向面圧".format(pressure))
+        f.write("\n")
+
+    f.write("ESEL,ALL")
+    f.write("\n")
+
+    # 解析開始
+    f.write('solve')
+    f.write("\n")
+    f.write('finish')
+    f.write("\n")
+
+    f.close()
+
+
 def make_calc_efficiency_with_ansys_python_code(path):
     # ANSYSのηを計算する為のpythonコード作成
     f = open(path, 'r')
@@ -563,67 +682,3 @@ def make_calc_efficiency_with_ansys_python_code(path):
     f.write("efficiency = calc_output_efficiency(input_nodes, input_vectors * {}, output_nodes, output_vectors, displacement, E={}, A=A, L=L)\n".format(pressure, E))
     f.write("print(efficiency)\n")
     f.close()
-
-
-dir = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/11_18data/ハエトリグサ_n16_段階的_エッジ中間型/0/free_6_fix_2/final"
-
-nodes_pos = np.load(os.path.join(dir, 'nodes_pos.npy'))
-edges_indices = np.load(os.path.join(dir, 'edges_indices.npy'))
-edges_thickness = np.load(os.path.join(dir, 'edges_thickness.npy'))
-input_nodes = np.load(os.path.join(dir, 'input_nodes.npy')).tolist()
-input_vectors = np.load(os.path.join(dir, 'input_vectors.npy'))
-frozen_nodes = np.load(os.path.join(dir, 'frozen_nodes.npy')).tolist()
-output_nodes = np.load(os.path.join(dir, 'output_nodes.npy')).tolist()
-output_vectors = np.load(os.path.join(dir, 'output_vectors.npy'))
-
-"""
-new_edges_indices = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5],
-                              [7, 12], [11, 13], [9, 11], [13, 14], [12, 15], [14, 15]])
-ref_new_edges_thickness = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5],
-                                    [7, 12], [11, 13], [9, 11], [13, 14], [12, 15], [14, 15]])
-"""
-
-new_edges_indices = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5]])
-ref_new_edges_thickness = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5]])
-
-"""
-new_edges_indices = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5],
-                              [1, 6], [2, 7], [3, 8]])
-ref_new_edges_thickness = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 9], [5, 6], [6, 7], [7, 8], [8, 9], [0, 5],
-                                    [0, 5], [0, 5], [0, 5]])
-"""
-
-b = 15  # mm
-pressure = 0.1  # Mpa
-edge_thick_big_size = 20
-E = 10  # MPa
-
-new_edges_thickness = []
-for i in ref_new_edges_thickness:
-    new_edges_thickness.append(edges_thickness[np.argwhere((edges_indices[:, 0] == i[0]) & (edges_indices[:, 1] == i[1]))[0]])
-new_edges_thickness = np.array(new_edges_thickness).flatten()
-
-input_nodes, output_nodes, frozen_nodes, new_nodes_pos, new_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, nodes_pos, new_edges_indices)
-
-displacement, stresses = barfem_anti(new_nodes_pos, new_edges_indices, new_edges_thickness * edge_thick_big_size, input_nodes,
-                                     input_vectors * pressure, frozen_nodes, mode='force', E=E, b=b)
-_, _, _, _, \
-    _, _, _, _,\
-    L, A\
-    = venus_trap_condition(b=b, edge_width=0.025 * edge_thick_big_size)
-efficiency = calc_output_efficiency(input_nodes, input_vectors * pressure, output_nodes, output_vectors, displacement, E=E, A=A, L=L)
-print(efficiency)
-
-#displacement[[output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]] = [-0.24302, 0.52390]
-#efficiency = calc_output_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement, E=1, A=A, L=L)
-# print(efficiency)
-# displacement[[output_nodes[0] * 3 + 0, output_nodes[0] * 3 + 1]] = [-0.29494, 0.60707]  # GA適用後
-#efficiency = calc_output_efficiency(input_nodes, input_vectors, output_nodes, output_vectors, displacement, E=1, A=A, L=L)
-# print(efficiency)
-
-# convert_graph_info_to_mapdl_code_pressure(new_nodes_pos, new_edges_indices, new_edges_thickness * edge_thick_big_size,
-#                                          frozen_nodes, b=b, pressure=pressure, daihenkei=False)
-
-# convert_graph_info_to_mapdl_code_pressure(new_nodes_pos, new_edges_indices, new_edges_thickness, input_nodes,
-#                                          input_vectors * 10**(-1) * b / 0.2, frozen_nodes, b=b, daihenkei=False)
-convert_graph_info_to_mapdl_code_solsh190(new_nodes_pos, frozen_nodes, b, pressure, daihenkei=True, substep=1e3, highest_step=1e3, min_step=1e1)

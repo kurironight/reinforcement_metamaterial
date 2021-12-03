@@ -48,7 +48,7 @@ def get_nearest_value_index_in_list(list, num):
 
 
 def make_node(vertical_division, horizontal_division, vertical_length=6.5, horizontal_length=15,
-              curvature=0.04, left_thick=1, right_thick=0.5, plot=False, load_coord_length_path="venusflytrap/coord_length_data/coord_length_div100.npy"):
+              curvature=0.04, left_thick=1, right_thick=0.5, plot=False, load_coord_length_path="venusflytrap/coord_length_data/coord_length_div1000.npy"):
     """ハエトリグサの構造を8点ソリッドシェル要素として表現する関数.
     これは仮定として全ての部分における曲率は一定
 
