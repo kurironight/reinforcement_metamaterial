@@ -10,8 +10,10 @@ import os
 
 trial_time = 1  # アニーリング法を何回行うか
 EDGE_THICKNESS = 0.01  # エッジの太さ
-
+check_dir = "Annealing_results_η3_test"
 for i in range(trial_time):
+    result_dir = os.path.join(check_dir, "{}/graph_info".format(i))
+
     origin_nodes_positions = np.array([
         [0., 0.86603], [0.5, 0.], [1., 0.86603], [1.5, 0.],
         [2., 0.86603], [2.5, 0.], [3., 0.86603], [3.5, 0.],
@@ -135,5 +137,5 @@ for i in range(trial_time):
         else:
             proposed_efficiency = -1000000000000
         delta_efficiency = proposed_efficiency - current_efficiency
-        if delta_efficiency > 0:
+        if (delta_efficiency > 0) & (delta_efficiency > current_efficiency * 10**(-10)):
             print(chosen_edge_index)
