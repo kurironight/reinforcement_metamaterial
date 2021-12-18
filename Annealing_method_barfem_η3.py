@@ -14,7 +14,7 @@ from tools.save import save_graph_info_npy
 initial_temperature = 0.06
 final_temperature = 0
 trial_time = 1  # アニーリング法を何回行うか
-steps = 500  # epoch数
+steps = 200  # epoch数
 EDGE_THICKNESS = 0.01  # エッジの太さ
 pixel = 1000
 gif = False  # Trueならば画像を全部保存する．
@@ -221,16 +221,7 @@ for i in range(trial_time):
             current_efficiency = proposed_efficiency
             if temperature_index < 99:  # 100回目のaccept以降は温度は0のまま
                 temperature_index += 1
-
-        if best_efficiency < current_efficiency:
-            best_epoch = epoch
-            best_efficiency = current_efficiency
-            # 最良のノード情報を保存する
-            os.makedirs(os.path.join(log_dir, 'graph_info'), exist_ok=True)
-            save_graph_info_npy(os.path.join(log_dir, 'graph_info'), origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
-                                barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
-                                current_edges_indices, current_edges_thickness)
-            # 性能が向上した時のみ画像を保存する．
+            # 変更した際のグラフ情報を保存する．
             os.makedirs(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), exist_ok=True)
             save_graph_info_npy(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
                                 barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
@@ -240,6 +231,15 @@ for i in range(trial_time):
                                   current_edges_indices, current_edges_thickness, origin_frozen_nodes)
             env.reset()
             env.render(os.path.join(log_dir, 'render_image/{}.png'.format(epoch)), edge_size=100)
+
+        if best_efficiency < current_efficiency:
+            best_epoch = epoch
+            best_efficiency = current_efficiency
+            # 最良のノード情報を保存する
+            os.makedirs(os.path.join(log_dir, 'graph_info'), exist_ok=True)
+            save_graph_info_npy(os.path.join(log_dir, 'graph_info'), origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
+                                barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
+                                current_edges_indices, current_edges_thickness)
 
         if gif:
             os.makedirs(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), exist_ok=True)
