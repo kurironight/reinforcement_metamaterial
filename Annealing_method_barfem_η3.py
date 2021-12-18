@@ -191,7 +191,7 @@ for i in range(trial_time):
             proposed_efficiency = env.calculate_simulation()
 
         else:
-            proposed_efficiency = -1
+            proposed_efficiency = -1000000000000
 
         delta_efficiency = proposed_efficiency - current_efficiency
 
