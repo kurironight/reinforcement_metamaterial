@@ -9,21 +9,18 @@ import os
 import pickle
 from tools.plot import plot_efficiency_history
 from tools.save import save_graph_info_npy
-from tools.graph import remove_node_which_nontouchable_in_edge_indices, calc_efficiency, render_graph
-from FEM.bar_fem import barfem
-from FEM.make_structure import make_bar_structure
-import matplotlib.pyplot as plt
 
 # PARAMETER
 initial_temperature = 0.06
-final_temperature = 0.001
-steps = 5000  # 試行回数
+final_temperature = 0
+trial_time = 1  # アニーリング法を何回行うか
+steps = 500  # epoch数
 EDGE_THICKNESS = 0.01  # エッジの太さ
 pixel = 1000
+gif = False  # Trueならば画像を全部保存する．
 
-for i in range(5):
+for i in range(trial_time):
     test_name = "{}".format(i)
-    gif = True  # Trueならば画像を全部保存する．
 
     # 学習の推移
     history = {}
@@ -31,7 +28,7 @@ for i in range(5):
     history['result_efficiency'] = []
 
     # directoryの作成
-    log_dir = "Annealing_results_η3_reverse_force/{}".format(test_name)
+    log_dir = "Annealing_results_η3/{}".format(test_name)
 
     assert not os.path.exists(log_dir), "already folder exists"
     os.makedirs(log_dir)
@@ -40,8 +37,6 @@ for i in range(5):
     # tempリストの準備
     temperatures = np.linspace(
         initial_temperature, final_temperature, num=100)
-    temperatures = list(np.concatenate(
-        [temperatures, np.ones(steps - 100) * final_temperature]))
 
     # 初期のノードの状態を抽出
     origin_nodes_positions = np.array([
@@ -120,7 +115,7 @@ for i in range(5):
     origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
     origin_input_vectors = np.array([
-        [0., 1],
+        [0., -1],
     ])
     origin_output_vectors = np.array([
         [-1, 0],
@@ -159,12 +154,14 @@ for i in range(5):
         current_efficiency = env.calculate_simulation(mode='force')
         print(current_efficiency)
     else:
-        current_efficiency = -1
+        current_efficiency = -1000000000000
 
     current_edges_indices = origin_edges_indices.copy()
     current_edges_thickness = origin_edges_thickness.copy()
 
-    for epoch, temperature in enumerate(tqdm(temperatures)):
+    temperature_index = 0
+    for epoch in tqdm(range(steps)):
+        temperature = temperatures[temperature_index]  # ステップにおける温度係数
         # 条件ノードの間にあるエッジ以外のエッジを選択
         while(1):
             chosen_edge_indice = np.random.randint(0, edge_num)
@@ -222,17 +219,27 @@ for i in range(5):
             current_edges_indices = proposed_edges_indices
             current_edges_thickness = proposed_edges_thickness
             current_efficiency = proposed_efficiency
+            if temperature_index < 99:  # 100回目のaccept以降は温度は0のまま
+                temperature_index += 1
 
         if best_efficiency < current_efficiency:
             best_epoch = epoch
             best_efficiency = current_efficiency
-            # 最良のノード情報などを保存する
+            # 最良のノード情報を保存する
             os.makedirs(os.path.join(log_dir, 'graph_info'), exist_ok=True)
             save_graph_info_npy(os.path.join(log_dir, 'graph_info'), origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
                                 barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
                                 current_edges_indices, current_edges_thickness)
-            # env.render(os.path.join(
-            #     log_dir, 'render_image/{}.png'.format(epoch+1)))
+            # 性能が向上した時のみ画像を保存する．
+            os.makedirs(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), exist_ok=True)
+            save_graph_info_npy(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
+                                barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
+                                current_edges_indices, current_edges_thickness)
+            env = BarFemOutputGym(origin_nodes_positions, barfem_input_nodes, origin_input_vectors,
+                                  barfem_output_nodes, origin_output_vectors, origin_frozen_nodes,
+                                  current_edges_indices, current_edges_thickness, origin_frozen_nodes)
+            env.reset()
+            env.render(os.path.join(log_dir, 'render_image/{}.png'.format(epoch)), edge_size=100)
 
         if gif:
             os.makedirs(os.path.join(log_dir, 'epochs/epoch{}'.format(epoch)), exist_ok=True)
@@ -251,11 +258,5 @@ for i in range(5):
         # 学習履歴を保存
         with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
             pickle.dump(history, f)
-        with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
-            f.writelines('epoch %d,  result_efficiency: %.5f\n' %
-                         (epoch + 1, current_efficiency))
-        with open(os.path.join(log_dir, "represent_value.txt"), mode='w') as f:
-            f.writelines('epoch %d,  best_efficiency: %.5f\n' %
-                         (best_epoch + 1, best_efficiency))
         plot_efficiency_history(history, os.path.join(
             log_dir, 'learning_effi_curve.png'))

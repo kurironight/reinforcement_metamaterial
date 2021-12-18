@@ -55,5 +55,5 @@ class BarFemOutputGym(BarFemGym):
         input_nodes, output_nodes, frozen_nodes, nodes_pos, edges_indices = remove_node_which_nontouchable_in_edge_indices(self.input_nodes, self.output_nodes, self.frozen_nodes, nodes_pos, edges_indices)
         displacement = barfem(nodes_pos, edges_indices, edges_thickness, input_nodes,
                               self.input_vectors, frozen_nodes, mode)
-        efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=1.0, b=0.2)
+        efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=1.0, A=0.2)
         return efficiency
