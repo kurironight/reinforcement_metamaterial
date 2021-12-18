@@ -108,10 +108,6 @@ for i in range(trial_time):
     edge_num = origin_edges_indices.shape[0]
     origin_edges_thickness = np.ones(edge_num) * EDGE_THICKNESS
 
-    origin_input_nodes = [81, 82, 83, 84]
-
-    origin_output_nodes = [68, 69, 70, 71]
-
     origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
     origin_input_vectors = np.array([
@@ -122,7 +118,7 @@ for i in range(trial_time):
     ])
     barfem_input_nodes = [84]
     barfem_output_nodes = [68]
-    condition_nodes = origin_input_nodes + origin_output_nodes + origin_frozen_nodes
+    condition_nodes = barfem_input_nodes + barfem_output_nodes + origin_frozen_nodes
 
     """
     edges = [[pixel * origin_nodes_positions[edges_indice[0]], pixel * origin_nodes_positions[edges_indice[1]],
@@ -166,7 +162,7 @@ for i in range(trial_time):
         while(1):
             chosen_edge_indice = np.random.randint(0, edge_num)
             target_edge_indice = origin_edges_indices[chosen_edge_indice]
-            if not np.any(np.isin(target_edge_indice, condition_nodes)):
+            if not np.isin(target_edge_indice[0], condition_nodes) & np.isin(target_edge_indice[1], condition_nodes):
                 break
 
         # proposed_efficiencyを求める
