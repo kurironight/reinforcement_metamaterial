@@ -51,9 +51,10 @@ for i in range(data_num):
         edge_info = np.concatenate([edges_indices, edges_thickness.reshape((-1, 1))], axis=1)
         G2.add_edges_from(edges_indices)
         print("計算中")
-        for v in nx.optimize_graph_edit_distance(G1, G2):
-            minv = v
-            print(minv)
+        # for v in nx.optimize_graph_edit_distance(G1, G2):
+        #    minv = v
+        #    print(minv)
+        minv = nx.graph_edit_distance(G1, G2)
         data_GED_list.append(minv)
         np.save(os.path.join(load_dir, "GED_{}_{}.npy".format(i, node)), minv)
     GED_list.append(data_GED_list)
