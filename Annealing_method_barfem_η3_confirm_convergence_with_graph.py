@@ -11,17 +11,17 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 
-history_path = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/11_3data/アニーリング法_η3/Annealing_results_force_output_efficiency/001"
+history_path = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/修論用補足データ/Annealing_results_η3"
 
 
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
 maxes = []
 
-for i in range(4):
+for i in range(5):
     with open(os.path.join(history_path, "{}/history.pkl".format(i)), 'rb') as web:
         history = pickle.load(web)
-    history = np.array(history["result_efficiency"]).reshape((-1, 1)) * 0.2
+    history = np.array(history["result_efficiency"]).reshape((-1, 1))
     prior_history = history[:-1, :]
     pro_history = history[1:, :]
     rc = pro_history / prior_history  # 変化率
