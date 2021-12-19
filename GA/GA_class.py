@@ -743,7 +743,7 @@ class Disp_GA(NodeNumFreeStressConstraint_GA):
 
 class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
     # 性能はη3．ノード数は可変．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
         super(ForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 5)
         self.directions[:] = Problem.MAXIMIZE
@@ -814,7 +814,7 @@ class ForceDisp_GA(NodeNumFreeStressConstraint_GA):
 
 class FixnodeForceDisp_GA(ForceDisp_GA):
     # 性能はη3．ノード数は固定．
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187933.01203108422, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
         super(FixnodeForceDisp_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 6)
         self.directions[:] = Problem.MAXIMIZE
@@ -850,7 +850,7 @@ class VenusFrytrap_GA(FixnodeForceDisp_GA):
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
             self.L, self.A\
-            = venus_trap_condition(self.b,self.condition_edge_thickness)
+            = venus_trap_condition(self.b, self.condition_edge_thickness)
         # 定義しなおしの箇所
         self.input_output_node_num = 8  # 入力ノードと出力ノードの合計数
         self.node_num = free_node_num + fix_node_num + self.input_output_node_num
