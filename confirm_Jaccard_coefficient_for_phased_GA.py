@@ -6,12 +6,12 @@ import networkx as nx
 from tqdm import tqdm
 
 data_num = 5
-interval = 5
+interval = 10
 first_data = 5  # 各段階的GAで保存されている最初のepoch
 last_data = 115  # 各段階的GAで保存されている最後のepoch
 save_epochs = np.arange(first_data, last_data + 1, interval)
 max_node_num = 6
-load_dir = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/11_11data/中間エッジ追加型GA_n6_固定有"
+load_dir = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/11_11data/新規エッジ追加型GA_n6_固定有"
 
 Jaccard_list = []
 
