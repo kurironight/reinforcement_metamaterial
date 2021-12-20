@@ -1,4 +1,6 @@
-from platypus import NSGAII, default_variator
+from platypus import NSGAII, default_variator, GeneticAlgorithm
+from platypus.operators import TournamentSelector, RandomGenerator
+from platypus.core import ParetoDominance
 from tqdm import tqdm
 from GA.GA_class import *
 from tools.graph import *
@@ -6,6 +8,7 @@ import numpy as np
 import os
 from GA.utils import *
 import pickle
+import functools
 
 
 class Customized_NSGAII(NSGAII):
@@ -584,3 +587,39 @@ class Venus_FixNode_NSGAII(FixNode_NSGAII):
                     break
 
         return solution
+
+
+class Customized_GeneticAlgorithm(GeneticAlgorithm):
+    """platypusにおいて通常とされている，最も良い解のみをエリート保存するのではなく，
+    NSGA2を参考に親全てをエリート保存するようにした"""
+
+    def __init__(self, problem,
+                 population_size=100,
+                 generator=RandomGenerator(),
+                 selector=TournamentSelector(2),
+                 comparator=ParetoDominance(),
+                 variator=None,
+                 **kwargs):
+        super(Customized_GeneticAlgorithm, self).__init__(problem,
+                                                          population_size=population_size,
+                                                          offspring_size=population_size,
+                                                          generator=generator,
+                                                          selector=selector,
+                                                          comparator=comparator,
+                                                          variator=variator,
+                                                          **kwargs)
+
+    def iterate(self):
+        offspring = []
+
+        while len(offspring) < self.offspring_size:
+            parents = self.selector.select(self.variator.arity, self.population)
+            offspring.extend(self.variator.evolve(parents))
+
+        self.evaluate_all(offspring)
+
+        offspring.extend(self.population)
+        offspring = sorted(offspring, key=functools.cmp_to_key(self.comparator))
+
+        self.population = offspring[:self.population_size]
+        self.fittest = self.population[0]
