@@ -96,12 +96,12 @@ def condition_only_input_output():
         origin_input_vectors, origin_output_nodes, origin_output_vectors, []
 
 
-def venus_trap_condition(b,edge_width):
-    midrib_length = 6  # 長さ6mm
+def venus_trap_condition(b, edge_width):
+    midrib_length = 6.5  # 長さ6mm
     left_thickness = 1  # 左端の幅1mm
     right_thickness = 0.5  # 左端の幅0.5mm
 
-    edge_width = edge_width # 条件エッジの太さ
+    edge_width = edge_width  # 条件エッジの太さ
 
     record_point_1 = np.array([234, 111], dtype=float)
     record_point_2 = np.array([304, 177], dtype=float)
