@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from FEM.bar_fem import barfem, barfem_anti
 
-midrib_length = 6  # 長さ6mm
+midrib_length = 6.5  # 長さ6mm
 left_thickness = 1  # 左端の幅1mm
 right_thickness = 0.5  # 左端の幅0.5mm
 
