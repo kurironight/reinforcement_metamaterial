@@ -54,6 +54,24 @@ def plot_efficiency_history(history, save_path):
     plt.close()
 
 
+def plot_efficiency_history_with_max_value(history, save_path, max_value):
+    epochs = history['epoch']
+    result_efficiency = history['result_efficiency']
+    epochs = np.array(epochs)
+    result_efficiency = np.array(result_efficiency)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(epochs, result_efficiency, label='efficiency')
+    ax.axhline(max_value, ls="--", color="red")
+    ax.set_xlim(1, max(epochs))
+    ax.set_xlabel('epoch')
+    ax.legend()
+    ax.set_title("efficiency curve")
+    plt.savefig(save_path)
+    plt.close()
+
+
 def plot_steps_history(history, save_path):
     epochs = history['epoch']
     results = history['steps']
