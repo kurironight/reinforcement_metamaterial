@@ -68,7 +68,7 @@ class Select_node2_model(torch.nn.Module):
     def forward(self, emb_node):
         x = F.relu(self.layer1(emb_node))  # 1*node_num*emb_size
         emb_node = x.clone()
-        emb_node = self.layer3(emb_node)  # 1*node_num*emb_size
+        emb_node = F.relu(self.layer3(emb_node))  # 1*node_num*emb_size
         emb_node = torch.mean(emb_node, dim=1)  # 1*emb_size
 
         x = self.layer2(x)  # 1*node_num*1
