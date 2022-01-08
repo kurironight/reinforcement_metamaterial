@@ -14,7 +14,7 @@ def confirm_max_status():
     "最大値となる状態を求める．"
     max = 0
     x = 1000
-    for i in np.arange(0.1, 1, 0.001):
+    for i in np.arange(0.1, 1.001, 0.001):
         node_pos, input_nodes, input_vectors,\
             output_nodes, output_vectors, frozen_nodes,\
             edges_indices, edges_thickness, frozen_nodes = easy_dev()
