@@ -112,6 +112,9 @@ def select_action_gcn_critic_gcn(env, criticNet, node1Net, node2Net, x_y_Net, de
         history['y_mean'].append(x_y[0][1].item())
         history['y_sigma'].append(x_y[0][3].item())
         history['critic_value'].append(state_value.item())
+        history['node_select'].append([node1.item(), node2.item()])
+        history['node1_possibility'].append(node1_prob.to('cpu').detach().numpy().copy())
+        history['node2_possibility'].append(node2_prob.to('cpu').detach().numpy().copy())
     return action
 
 

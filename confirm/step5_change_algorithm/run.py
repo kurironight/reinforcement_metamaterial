@@ -30,6 +30,9 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     history['y_sigma'] = []
     history['advantage'] = []
     history['critic_value'] = []
+    history['node_select'] = []
+    history['node1_possibility'] = []
+    history['node2_possibility'] = []
 
     log_dir = "confirm/step5_change_algorithm/a_gcn_c_gcn_results/{}".format(test_name)
 
