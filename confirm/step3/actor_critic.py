@@ -122,8 +122,8 @@ class Edgethick_Actor(torch.nn.Module):
         h = F.relu(self.fc2(h))
         mean = self.mean(h)
         std = self.std(h)
-        mean = torch.abs(mean)
-        std = torch.abs(std)
+        mean = 0.1+0.9*torch.sigmoid(mean)
+        std = 0.1*torch.sigmoid(std)
         y = torch.cat([mean, std], dim=1)
         return y
 
