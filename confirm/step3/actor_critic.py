@@ -231,7 +231,7 @@ def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNe
         mean_action['edge_thickness'] = np.array([edge_thickness[0][0].item()])
         mean_action['new_node'] = np.array([[0, 2]])
         next_nodes_pos, _, done, _ = calc_effi_env.step(mean_action)
-        mean_efficiency = calc_effi_env.calculate_simulation(mode='force')
+        mean_efficiency = calc_effi_env.calculate_simulation()
 
         # historyにログを残す
         history['mean_efficiency'].append(mean_efficiency)

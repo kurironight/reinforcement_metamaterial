@@ -17,7 +17,7 @@ def easy_dev():
 
     input_nodes = [0]
     input_vectors = np.array([[1, 0]])
-    frozen_nodes = [1, 2]
+    frozen_nodes = [2]
     output_nodes = [3]
     output_vectors = np.array([[1, 0]])
 
