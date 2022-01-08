@@ -5,6 +5,8 @@ from torch.distributions import Categorical
 from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 from collections import namedtuple
 import torch.distributions as tdist
+import pickle
+import os
 
 Saved_mean_std_Action = namedtuple(
     'SavedAction', ['mean', 'variance'])
@@ -192,3 +194,28 @@ def finish_episode(Critic, x_y_Net, node1Net, node2Net, Critic_opt, x_y_opt, Nod
     if history is not None:
         history['advantage'].append(advantage.item())
     return loss.item()
+
+
+def check_1_5_is_max_probability(history_path):
+    # 0.425以上の値が出た時，次の選択確率で[1,5]の値が最大の確率になっているかを確認する．
+    threshold = 0.425
+    target_action1 = 1
+    target_action2 = 5
+
+    with open(os.path.join(history_path, "history.pkl"), 'rb') as web:
+        history = pickle.load(web)
+
+    good_select_epochs = np.argwhere(np.array(history['result_efficiency']) > threshold)[:, 0]
+    next_epochs = good_select_epochs + 1
+    if next_epochs[-1] == len(history['result_efficiency']):
+        next_epochs = next_epochs[:-1]
+
+    node1_possibility = history['node1_possibility']
+    node2_possibility = history['node2_possibility']
+
+    next_epochs_node1_possibility = np.array(node1_possibility)[next_epochs][:, 0]
+    next_epochs_node2_possibility = np.array(node2_possibility)[next_epochs][:, 0]
+    next_node1_action_max_possibility = np.argmax(next_epochs_node1_possibility, axis=1)
+    next_node2_action_max_possibility = np.argmax(next_epochs_node2_possibility, axis=1)  # 選択肢が5の時を調査しているからだからこのコードでok
+    print("最良解に近い解が出力された回数：", good_select_epochs.shape[0])
+    print("最良解の選択肢が最大になったか：", np.any((next_node1_action_max_possibility == target_action1) & (next_node2_action_max_possibility == target_action2 - 1)))
