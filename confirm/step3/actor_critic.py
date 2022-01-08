@@ -107,13 +107,14 @@ class CriticNetwork_GCN(torch.nn.Module):
         return value
 
 
-class Edgethick_Actor(nn.Module):
+class Edgethick_Actor(torch.nn.Module):
 
     def __init__(self, in_features, hidden1_size=400, hidden2_size=300):
-        self.fc1 = nn.Linear(in_features, hidden1_size)
-        self.fc2 = nn.Linear(hidden1_size, hidden2_size)
-        self.mean = nn.Linear(hidden2_size, 1)
-        self.std = nn.Linear(hidden2_size, 1)
+        super(Edgethick_Actor, self).__init__()
+        self.fc1 = torch.nn.Linear(in_features, hidden1_size)
+        self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
+        self.mean = torch.nn.Linear(hidden2_size, 1)
+        self.std = torch.nn.Linear(hidden2_size, 1)
         self.saved_actions = []
 
     def forward(self, x):
@@ -172,7 +173,7 @@ def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNe
 
     # ノード1の情報抽出
     H1 = emb_node[0][node1]
-    H1_cat = H1.repeat(node_num, 1)
+    H1_cat = H1.repeat(node_num-1, 1)
     H1_cat = H1_cat.unsqueeze(0)
     # HとH1のノード情報をconcat
     emb_graph_cat = torch.cat([non_node1_node, H1_cat], 2)

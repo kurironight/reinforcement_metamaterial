@@ -82,7 +82,7 @@ def actor_gcn_critic_gcn(max_episodes=5000, test_name="test", log_file=False, sa
     actorNet = Select_node1_model(2, 1, 400, 400).to(device).double()
     actorNet2 = Select_node2_model(400 + 2, 400).to(device).double()
     criticNet = CriticNetwork_GCN(2, 1, 400, 400).to(device).double()
-    edgethickNet = Edgethick_Actor(2, 1, 400, 400).to(device).double()
+    edgethickNet = Edgethick_Actor(400).to(device).double()
     optimizer_actor = optim.Adam(actorNet.parameters(), lr=lr_actor)
     optimizer_actor2 = optim.Adam(actorNet2.parameters(), lr=lr_actor)
     optimizer_edgethick = optim.Adam(edgethickNet.parameters(), lr=lr_actor)
