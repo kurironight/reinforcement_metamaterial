@@ -122,8 +122,8 @@ class Edgethick_Actor(torch.nn.Module):
         h = F.relu(self.fc2(h))
         mean = self.mean(h)
         std = self.std(h)
-        mean = 0.1+0.9*torch.sigmoid(mean)
-        std = 0.1*torch.sigmoid(std)
+        mean = 0.1 + 0.9 * torch.sigmoid(mean)
+        std = 0.1 * torch.sigmoid(std)
         y = torch.cat([mean, std], dim=1)
         return y
 
@@ -173,7 +173,7 @@ def select_action_gcn_critic_gcn(env, node1Net, node2Net, criticNet, edgethickNe
 
     # ノード1の情報抽出
     H1 = emb_node[0][node1]
-    H1_cat = H1.repeat(node_num-1, 1)
+    H1_cat = H1.repeat(node_num - 1, 1)
     H1_cat = H1_cat.unsqueeze(0)
     # HとH1のノード情報をconcat
     emb_graph_cat = torch.cat([non_node1_node, H1_cat], 2)
