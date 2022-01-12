@@ -1,4 +1,3 @@
-import optuna
 from .step1_gym import Step1Gym
 from .condition import easy_dev
 import numpy as np
@@ -9,6 +8,8 @@ from tools.plot import plot_efficiency_history
 import os
 from .actor_critic import select_action, Edgethick_Actor, Edgethick_Critic, finish_episode
 import pickle
+from FEM.bar_fem import barfem
+from tqdm import tqdm
 
 
 def f(x):
@@ -120,7 +121,7 @@ def ddpg():
             if done:
                 break
 
-        history['epoch'].append(episode+1)
+        history['epoch'].append(episode + 1)
         history['result_efficiency'].append(reward)
         if reward < 0:
             print(edges_thickness)
@@ -203,7 +204,7 @@ def actor_critic():
         loss = finish_episode(criticNet, actorNet, optimizer_critic,
                               optimizer_actor, gamma)
 
-        history['epoch'].append(episode+1)
+        history['epoch'].append(episode + 1)
         history['result_efficiency'].append(reward)
 
         if episode % 10 == 0:
@@ -214,13 +215,10 @@ def actor_critic():
         log_dir, 'learning_effi_curve.png'))
 
 
-def actor_critic_mean():
+def actor_critic_mean(max_episodes, test_name):
     """Actor-Criticの５回実験したときの平均グラフを作成する関数"""
 
     test_num = 5
-
-    max_episodes = 5000
-    test_name = "5timess_with_std"  # 実験名
 
     log_dir = "confirm/step1/ac_results/{}".format(test_name)
     assert not os.path.exists(log_dir), "already folder exists"
@@ -235,10 +233,6 @@ def actor_critic_mean():
         node_pos, input_nodes, input_vectors,\
             output_nodes, output_vectors, frozen_nodes,\
             edges_indices, edges_thickness, frozen_nodes = easy_dev()
-        env = Step1Gym(node_pos, input_nodes, input_vectors,
-                       output_nodes, output_vectors, frozen_nodes,
-                       edges_indices, edges_thickness, frozen_nodes)
-        env.reset()
 
         max_steps = 1
         lr_actor = 1e-4
@@ -254,28 +248,27 @@ def actor_critic_mean():
         optimizer_critic = optim.Adam(
             criticNet.parameters(), lr=lr_critic, weight_decay=weight_decay)
 
-        for episode in range(max_episodes):
-            observation = env.reset()
+        for episode in tqdm(range(max_episodes)):
             observation = np.array([0, 1])
 
             for step in range(max_steps):
                 action = select_action(
                     observation, actorNet, criticNet, device)
-
-                next_observation, _, done, _ = env.step(action)
-                reward = env.calculate_simulation(mode='force')
+                edges_thickness = action['edge_thickness']
+                displacement = barfem(node_pos, edges_indices, edges_thickness, input_nodes,
+                                      input_vectors, frozen_nodes, mode="force")
+                reward = displacement[1 * 3]
                 criticNet.rewards.append(reward)
 
             loss = finish_episode(criticNet, actorNet, optimizer_critic,
                                   optimizer_actor, gamma)
 
-            history["{}".format(i)]['epoch'].append(episode+1)
+            history["{}".format(i)]['epoch'].append(episode + 1)
             history["{}".format(i)]['result_efficiency'].append(reward)
 
             if episode % 1000 == 0:
                 print("episode:{} total reward:{}".format(episode, reward))
 
-        env.close()
         plot_efficiency_history(history["{}".format(i)], os.path.join(
             log_dir, 'learning_effi_curve{}.png'.format(i)))
 

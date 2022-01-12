@@ -11,13 +11,13 @@ def easy_dev():
 
     edges_indices = np.array([[0, 1]])
 
-    edges_thickness = np.array([1.0*A])
+    edges_thickness = np.array([1.0 * A])
 
     input_nodes = [1]
-    input_vectors = np.array([[0.0, -0.01]])
+    input_vectors = np.array([[1, 0]])
     frozen_nodes = [0]
     output_nodes = [1]
-    output_vectors = np.array([[0.0, -1.0]])
+    output_vectors = np.array([[1.0, 0]])
 
     return nodes_pos, input_nodes, input_vectors,\
         output_nodes, output_vectors, frozen_nodes,\
