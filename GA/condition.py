@@ -97,7 +97,7 @@ def condition_only_input_output():
 
 
 def venus_trap_condition(b, edge_width):
-    midrib_length = 6.5  # 長さ6mm
+    midrib_length = 6.5  # 長さ6.5mm
     left_thickness = 1  # 左端の幅1mm
     right_thickness = 0.5  # 左端の幅0.5mm
 
