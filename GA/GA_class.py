@@ -845,7 +845,7 @@ class FixnodeForceDisp_GA(ForceDisp_GA):
 
 class VenusFrytrap_GA(FixnodeForceDisp_GA):
     # ハエトリグサのGAモデル
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=15):
         super(VenusFrytrap_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, 1e10, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
@@ -1010,7 +1010,7 @@ class VenusFrytrap_GA(FixnodeForceDisp_GA):
 
 class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
     # ハエトリグサのGAモデル
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=15):
         super(VenusFrytrap_GA_hrv1, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
@@ -1117,7 +1117,7 @@ class VenusFrytrap_GA_hrv1(VenusFrytrap_GA):
 
 class VenusFrytrap_GA_hrv2(VenusFrytrap_GA):
     # ハエトリグサのGAモデル
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=15):
         super(VenusFrytrap_GA_hrv2, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\
