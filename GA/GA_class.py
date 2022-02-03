@@ -5,7 +5,7 @@ from tools.lattice_preprocess import make_main_node_edge_info
 from tools.graph import preprocess_graph_info, separate_same_line_procedure, \
     conprocess_seperate_edge_indice_procedure, seperate_cross_line_procedure, calc_efficiency,\
     remove_node_which_nontouchable_in_edge_indices, render_graph, check_cross_graph, count_cross_points,\
-    conprocess_condition_edge_indices, calc_equation
+    conprocess_condition_edge_indices, calc_equation, calc_maximum_buckling_force_ratio
 import numpy as np
 from .utils import make_edge_thick_triu_matrix, make_adj_triu_matrix
 import networkx as nx
@@ -843,9 +843,94 @@ class FixnodeForceDisp_GA(ForceDisp_GA):
         solution.constraints[:] = [cross_point_number, stress, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio]
 
 
+class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
+    # 性能はη3．ノード数は固定．
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10,
+                 minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2, maximum_buckling_force_ratio=1.9033898488659415e-11):
+        super(FixnodeForceDispBuckling_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 7)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = "<=" + str(overlap_edge_length_threshold)  # エッジが重複していいエッジの長さの割合の最大値
+        self.constraints[4] = "<=0"  # 指定ノード数との乖離数
+        self.constraints[5] = ">=" + str(minimum_edge_node_dist_ratio_threshold)  # エッジとノードとの距離のエッジの太さに対する割合の最小値
+        self.constraints[6] = "<=" + str(maximum_buckling_force_ratio)  # 座屈が発生する為の倍率
+
+    def evaluate(self, solution):
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        max_overlap_edge_length_ratio = result["max_overlap_edge_length_ratio"]
+        erased_node_num = result["erased_node_num"]
+        min_edge_node_dist_ratio = result["min_edge_node_dist_ratio"]
+        buckling_force_ratio = result["buckling_force_ratio"]
+        solution.objectives[:] = [efficiency]
+        solution.constraints[:] = [cross_point_number, stress, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio, buckling_force_ratio]
+
+    def return_score(self, nodes_pos, edges_indices, edges_thickness, np_save_dir, cross_fix):
+        trigger, edges_indices, edges_thickness = self.calculate_trigger(nodes_pos, edges_indices, edges_thickness)
+        if trigger == 0:  # もし条件ノードが全て含まれるグラフが存在しない場合，ペナルティを発動する
+            efficiency = self.penalty_value
+            cross_point_num = self.penalty_constraint_value
+            erased_node_num = self.penalty_constraint_value
+            max_axial_stress = self.penalty_constraint_value
+            max_overlap_edge_length_ratio = self.penalty_constraint_value
+            min_edge_node_dist_ratio = -self.penalty_constraint_value
+        else:
+            if self.distance_threshold:  # 近いノードを同一のノードとして処理する
+                nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
+
+            # 同じノード，[1,1]などのエッジの排除，エッジのソートなどを行う
+            processed_nodes_pos, processed_edges_indices, processed_edges_thickness = preprocess_graph_info(nodes_pos, edges_indices, edges_thickness)
+
+            cross_point_num = count_cross_points(processed_nodes_pos, processed_edges_indices)
+
+            # 条件ノード部分の修正を行う．（太さを指定通りのものに戻す）
+            input_nodes, output_nodes, frozen_nodes, processed_edges_thickness\
+                = conprocess_seperate_edge_indice_procedure(self.input_nodes, self.output_nodes, self.frozen_nodes, self.condition_nodes_pos,
+                                                            self.condition_edges_indices, self.condition_edges_thickness,
+                                                            processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            # 固定ノード部分のうち，[2,3],[3,4]以外の[2,4]などを排除する
+            processed_edges_indices, processed_edges_thickness = conprocess_condition_edge_indices(frozen_nodes, self.frozen_nodes, processed_edges_indices, processed_edges_thickness)
+
+            # efficiencyを計算する
+            input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices = remove_node_which_nontouchable_in_edge_indices(input_nodes, output_nodes, frozen_nodes, processed_nodes_pos, processed_edges_indices)
+            displacement, stresses = barfem_anti(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, input_nodes,
+                                                 self.input_vectors, frozen_nodes, mode='force', E=self.E, b=self.b)
+            efficiency = calc_output_efficiency(input_nodes, self.input_vectors, output_nodes, self.output_vectors, displacement, E=self.E, A=self.b)
+
+            erased_node_num = self.node_num - processed_nodes_pos.shape[0]
+
+            axial_stresses = calc_axial_stress(stresses)
+            max_axial_stress = np.max(axial_stresses)  # 最大軸方向の応力
+
+            max_overlap_edge_length_ratio = calc_maximum_overlap_edge_length_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            min_edge_node_dist_ratio = calc_minimum_segment_line_dist_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
+            buckling_force_ratio = calc_maximum_buckling_force_ratio(processed_edges_thickness, processed_nodes_pos, processed_edges_indices, self.E, self.b, stresses)
+            if np_save_dir:  # グラフの画像を保存する
+                os.makedirs(np_save_dir, exist_ok=True)
+                render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
+                save_graph_info_npy(np_save_dir, processed_nodes_pos, input_nodes, self.input_vectors,
+                                    output_nodes, self.output_vectors, frozen_nodes,
+                                    processed_edges_indices, processed_edges_thickness)
+
+        return {"efficiency": float(efficiency), "cross_point_num": cross_point_num, "max_axial_stress": max_axial_stress, "trigger": trigger,
+                "max_overlap_edge_length_ratio": max_overlap_edge_length_ratio, "erased_node_num": erased_node_num, "min_edge_node_dist_ratio": min_edge_node_dist_ratio,
+                "buckling_force_ratio": buckling_force_ratio}
+
+
 class VenusFrytrap_GA(FixnodeForceDisp_GA):
     # ハエトリグサのGAモデル
-    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=15):
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.03, min_edge_thickness=0.02, condition_edge_thickness=0.025, distance_threshold=0.25, overlap_edge_length_threshold=1 / 10, minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
         super(VenusFrytrap_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, 1e10, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold, E, b)
         self.condition_nodes_pos, self.input_nodes, self.input_vectors, self.output_nodes, \
             self.output_vectors, self.frozen_nodes, self.condition_edges_indices, self.condition_edges_thickness,\

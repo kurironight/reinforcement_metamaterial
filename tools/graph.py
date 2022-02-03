@@ -874,3 +874,21 @@ def calc_equation(point1, point2):
     a = (point2[1] - point1[1]) / (point2[0] - point1[0])
     b = (point2[0] * point1[1] - point1[0] * point2[1]) / (point2[0] - point1[0])
     return (a, b)
+
+
+def calc_lengths(nodes_pos, edges_indices):
+    edge_points = np.array([np.stack([nodes_pos[edges_indice[0]], nodes_pos[edges_indice[1]]]) for edges_indice in edges_indices])
+    lengths = calc_length(edge_points[:, 0, 0], edge_points[:, 0, 1], edge_points[:, 1, 0], edge_points[:, 1, 1])
+    return lengths
+
+
+def calc_maximum_buckling_force_ratio(edges_thickness, nodes_pos, edges_indices, E, b, stresses):
+    lengths = calc_lengths(nodes_pos, edges_indices)
+    A = edges_thickness * b
+    I = (A * edges_thickness**2) / 12
+    n = 4  # 端末係数．今回の場合，両端回転・変位固定
+    P = n * (np.pi**2) * E * I / (lengths**2)  # 座屈荷重
+    tensile = stresses[:, [0, 3]][:, 1]  # 軸荷重,負だったら圧縮
+    force_x = tensile / A
+    compress_mask = tensile < 0
+    return np.min(-P[compress_mask] / force_x[compress_mask])
