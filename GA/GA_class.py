@@ -885,6 +885,7 @@ class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
             max_axial_stress = self.penalty_constraint_value
             max_overlap_edge_length_ratio = self.penalty_constraint_value
             min_edge_node_dist_ratio = -self.penalty_constraint_value
+            buckling_force_ratio = 1e10
         else:
             if self.distance_threshold:  # 近いノードを同一のノードとして処理する
                 nodes_pos = self.preprocess_node_joint_in_distance_threshold(nodes_pos)
