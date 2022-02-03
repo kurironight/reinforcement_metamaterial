@@ -861,7 +861,7 @@ class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
         self.constraints[3] = "<=" + str(overlap_edge_length_threshold)  # エッジが重複していいエッジの長さの割合の最大値
         self.constraints[4] = "<=0"  # 指定ノード数との乖離数
         self.constraints[5] = ">=" + str(minimum_edge_node_dist_ratio_threshold)  # エッジとノードとの距離のエッジの太さに対する割合の最小値
-        self.constraints[6] = "<=" + str(maximum_buckling_force_ratio)  # 座屈が発生する為の倍率
+        self.constraints[6] = ">=" + str(maximum_buckling_force_ratio)  # 座屈が発生する為の倍率
 
     def evaluate(self, solution):
         result = self.objective(solution)
@@ -928,6 +928,37 @@ class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
                 "max_overlap_edge_length_ratio": max_overlap_edge_length_ratio, "erased_node_num": erased_node_num, "min_edge_node_dist_ratio": min_edge_node_dist_ratio,
                 "buckling_force_ratio": buckling_force_ratio}
 
+class MultiFixnodeForceDispBuckling_GA(FixnodeForceDispBuckling_GA):
+    # 性能はη3．ノード数は固定．
+    def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10,
+                 minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2):
+        super(MultiFixnodeForceDispBuckling_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold)
+        super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 2, 6)
+        self.directions[:] = Problem.MAXIMIZE
+        self.types[0:self.gene_node_pos_num] = Real(0, 1)  # ノードの位置座標を示す
+        self.types[1::2] = Real(self.distance_threshold, 1)  # ノードのy座標を固定部から離す
+        self.types[self.gene_node_pos_num:self.gene_node_pos_num + self.gene_edge_thickness_num] = Real(self.min_edge_thickness, self.max_edge_thickness)  # エッジの幅を示す バグが無いように0.1にする
+        self.types[self.gene_node_pos_num + self.gene_edge_thickness_num: self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num] = \
+            Binary(1)  # 隣接行列を指す
+        self.constraints[0] = "<=0"  # 交差しているエッジ数
+        self.constraints[1] = "<=" + str(constraint_stress)
+        self.constraints[2] = ">=1"  # 条件ノードと入力ノード，出力ノードが接続しているかどうか
+        self.constraints[3] = "<=" + str(overlap_edge_length_threshold)  # エッジが重複していいエッジの長さの割合の最大値
+        self.constraints[4] = "<=0"  # 指定ノード数との乖離数
+        self.constraints[5] = ">=" + str(minimum_edge_node_dist_ratio_threshold)  # エッジとノードとの距離のエッジの太さに対する割合の最小値
+
+    def evaluate(self, solution):
+        result = self.objective(solution)
+        efficiency = result["efficiency"]
+        cross_point_number = result["cross_point_num"]
+        stress = result["max_axial_stress"]
+        adjacent = result["trigger"]
+        max_overlap_edge_length_ratio = result["max_overlap_edge_length_ratio"]
+        erased_node_num = result["erased_node_num"]
+        min_edge_node_dist_ratio = result["min_edge_node_dist_ratio"]
+        buckling_force_ratio = result["buckling_force_ratio"]
+        solution.objectives[:] = [efficiency,buckling_force_ratio]
+        solution.constraints[:] = [cross_point_number, stress, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio]
 
 class VenusFrytrap_GA(FixnodeForceDisp_GA):
     # ハエトリグサのGAモデル
