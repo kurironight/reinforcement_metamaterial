@@ -882,7 +882,7 @@ def calc_lengths(nodes_pos, edges_indices):
     return lengths
 
 
-def calc_maximum_buckling_force_ratio(edges_thickness, nodes_pos, edges_indices, E, b, stresses):
+def calc_maximum_buckling_force_ratio(edges_thickness, nodes_pos, edges_indices, E, b, stresses, input_nodes):
     lengths = calc_lengths(nodes_pos, edges_indices)
     A = edges_thickness * b
     I = (A * edges_thickness**2) / 12
@@ -891,4 +891,6 @@ def calc_maximum_buckling_force_ratio(edges_thickness, nodes_pos, edges_indices,
     tensile = stresses[:, [0, 3]][:, 1]  # 軸荷重,負だったら圧縮
     force_x = tensile / A
     compress_mask = tensile < 0
+    katahoukotei_mask = (edges_indices[:, 0] == input_nodes[0]) | (edges_indices[:, 1] == input_nodes[0])
+    P[katahoukotei_mask] = P[katahoukotei_mask] / 16
     return np.min(-P[compress_mask] / force_x[compress_mask])

@@ -915,7 +915,7 @@ class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
 
             max_overlap_edge_length_ratio = calc_maximum_overlap_edge_length_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
             min_edge_node_dist_ratio = calc_minimum_segment_line_dist_ratio(processed_nodes_pos, processed_edges_indices, processed_edges_thickness)
-            buckling_force_ratio = calc_maximum_buckling_force_ratio(processed_edges_thickness, processed_nodes_pos, processed_edges_indices, self.E, self.b, stresses)
+            buckling_force_ratio = calc_maximum_buckling_force_ratio(processed_edges_thickness, processed_nodes_pos, processed_edges_indices, self.E, self.b, stresses, input_nodes)
             if np_save_dir:  # グラフの画像を保存する
                 os.makedirs(np_save_dir, exist_ok=True)
                 render_graph(processed_nodes_pos, processed_edges_indices, processed_edges_thickness, os.path.join(np_save_dir, "image.png"), display_number=True)
