@@ -846,7 +846,7 @@ class FixnodeForceDisp_GA(ForceDisp_GA):
 class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
     # 性能はη3．ノード数は固定．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10,
-                 minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2, maximum_buckling_force_ratio=1.9033898488659415e-11):
+                 minimum_edge_node_dist_ratio_threshold=10, E=1.0, b=0.2, maximum_buckling_force_ratio=8.305080622432345e-12):
         super(FixnodeForceDispBuckling_GA, self).__init__(free_node_num, fix_node_num, max_edge_thickness, min_edge_thickness, condition_edge_thickness, distance_threshold, constraint_stress, overlap_edge_length_threshold, minimum_edge_node_dist_ratio_threshold)
         super(Barfem_GA, self).__init__(self.gene_node_pos_num + self.gene_edge_thickness_num + self.gene_edge_indices_num, 1, 7)
         self.directions[:] = Problem.MAXIMIZE
@@ -928,6 +928,7 @@ class FixnodeForceDispBuckling_GA(FixnodeForceDisp_GA):
                 "max_overlap_edge_length_ratio": max_overlap_edge_length_ratio, "erased_node_num": erased_node_num, "min_edge_node_dist_ratio": min_edge_node_dist_ratio,
                 "buckling_force_ratio": buckling_force_ratio}
 
+
 class MultiFixnodeForceDispBuckling_GA(FixnodeForceDispBuckling_GA):
     # 性能はη3．ノード数は固定．
     def __init__(self, free_node_num, fix_node_num, max_edge_thickness=0.0125, min_edge_thickness=0.0075, condition_edge_thickness=0.01, distance_threshold=0.1, constraint_stress=187953.11966231687, overlap_edge_length_threshold=1 / 10,
@@ -957,8 +958,9 @@ class MultiFixnodeForceDispBuckling_GA(FixnodeForceDispBuckling_GA):
         erased_node_num = result["erased_node_num"]
         min_edge_node_dist_ratio = result["min_edge_node_dist_ratio"]
         buckling_force_ratio = result["buckling_force_ratio"]
-        solution.objectives[:] = [efficiency,buckling_force_ratio]
+        solution.objectives[:] = [efficiency, buckling_force_ratio]
         solution.constraints[:] = [cross_point_number, stress, adjacent, max_overlap_edge_length_ratio, erased_node_num, min_edge_node_dist_ratio]
+
 
 class VenusFrytrap_GA(FixnodeForceDisp_GA):
     # ハエトリグサのGAモデル
