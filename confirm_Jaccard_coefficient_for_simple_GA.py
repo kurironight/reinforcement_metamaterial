@@ -11,7 +11,7 @@ first_data = 5  # 各段階的GAで保存されている最初のepoch
 last_data = 500  # 各段階的GAで保存されている最後のepoch
 save_epochs = np.arange(first_data, last_data + 1, interval)
 max_node_num = 6
-load_dir = "//ZUIHO/share/user/knakamur/Metamaterial/seminar_data/11_11data/通常GA_n6_固定有"
+load_dir = "//ZUIHO/share/user/knakamur/修論/修論データ/単純GA_n16"
 
 Jaccard_list = []
 
